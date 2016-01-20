@@ -560,7 +560,6 @@ void runner_doghost(struct runner *r, struct cell *c) {
             }
             maxsize = fmaxf(r2, maxsize);
         }
-        printf("%g\n", maxsize);
 
         /* If no derivative, double the smoothing length. */
         if (wcount_dh == 0.0f) h_corr = p->h;
@@ -573,9 +572,6 @@ void runner_doghost(struct runner *r, struct cell *c) {
           h_corr = fminf(h_corr, h);
           h_corr = fmaxf(h_corr, -h / 2.f);
         }
-
-        /* Apply the correction to p->h and to the compact part. */
-/*        p->h += h_corr;*/
 
         /* Did we get the right number density? */
 /*        if (wcount > kernel_nwneigh + const_delta_nwneigh ||*/
@@ -594,6 +590,10 @@ void runner_doghost(struct runner *r, struct cell *c) {
           p->density.div_v = 0.0;
           for (k = 0; k < 3; k++) p->density.curl_v[k] = 0.0;
           voronoi_initialize(p);
+
+          /* Apply the correction to p->h and to the compact part. */
+/*          p->h += h_corr;*/
+          p->h = 1.5f*sqrtf(maxsize);
           continue;
         }
 

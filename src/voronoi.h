@@ -166,7 +166,38 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
  */
 
 __attribute__((always_inline)) INLINE static void voronoi_intersect(
-    float r2, float *dx, struct part *pi, struct part *pj) {
+    float or2, float *odx, struct part *pi, struct part *pj) {
+
+    float r2;
+    float dx[3];
+    dx[0] = (pj->x[0] - pi->x[0]);
+    dx[1] = (pj->x[1] - pi->x[1]);
+    dx[2] = (pj->x[2] - pi->x[2]);
+    
+    if(dx[0] > 0.5){
+        dx[0] -= 1.;
+    }
+    if(dx[0] < -0.5){
+        dx[0] += 1.;
+    }
+    if(dx[1] > 0.5){
+        dx[1] -= 1.;
+    }
+    if(dx[1] < -0.5){
+        dx[1] += 1.;
+    }
+    if(dx[2] > 0.5){
+        dx[2] -= 1.;
+    }
+    if(dx[2] < -0.5){
+        dx[2] += 1.;
+    }
+    
+    dx[0] *= 0.5f;
+    dx[1] *= 0.5f;
+    dx[2] *= 0.5f;
+    
+    r2 = dx[0]*dx[0] + dx[1]*dx[1] + dx[2]*dx[2];
 
     float u;
     int uw = test_vertex(&pi->voronoi.vertices[0], dx, r2, &u);

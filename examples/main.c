@@ -45,6 +45,7 @@
 
 /* Local headers. */
 #include "swift.h"
+#include "voronoi.h"
 
 /* Ticks per second on this machine. */
 #ifndef CPU_TPS
@@ -272,6 +273,11 @@ int main(int argc, char *argv[]) {
       parts[k].x[1] += shift[1];
       parts[k].x[2] += shift[2];
     }
+
+  /* Initialize Voronoi cells */
+  for (k = 0; k < N; k++) {
+    voronoi_initialize(&parts[k]);
+  }
 
   /* Set default number of queues. */
   if (nr_queues < 0) nr_queues = nr_threads;
