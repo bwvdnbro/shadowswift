@@ -1,6 +1,7 @@
 /*******************************************************************************
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk)
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -163,6 +164,20 @@ struct part {
 
     } force;
   };
+
+  /* Voronoi grid stuff */
+  struct {
+
+    /* Number of vertices */
+    int nvert;
+
+    /* Vertex positions */
+    float vertices[300];
+
+    /* Edge information */
+    int edges[600];
+
+  } voronoi;
 
   /* Particle pressure. */
   // float P;

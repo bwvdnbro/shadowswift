@@ -298,43 +298,43 @@ void pairs_single_grav(double *dim, long long int pid,
 
 void density_dump(int N) {
 
-  int k;
-  float r2[4] = {0.0f, 0.0f, 0.0f, 0.0f}, hi[4], hj[4];
-  struct part *pi[4], *pj[4], Pi[4], Pj[4];
+/*  int k;*/
+/*  float r2[4] = {0.0f, 0.0f, 0.0f, 0.0f}, hi[4], hj[4];*/
+/*  struct part *pi[4], *pj[4], Pi[4], Pj[4];*/
 
   /* Init the interaction parameters. */
-  for (k = 0; k < 4; k++) {
-    Pi[k].mass = 1.0f;
-    Pi[k].rho = 0.0f;
-    Pi[k].density.wcount = 0.0f;
-    Pj[k].mass = 1.0f;
-    Pj[k].rho = 0.0f;
-    Pj[k].density.wcount = 0.0f;
-    hi[k] = 1.0;
-    hj[k] = 1.0;
-    pi[k] = &Pi[k];
-    pj[k] = &Pj[k];
-  }
+/*  for (k = 0; k < 4; k++) {*/
+/*    Pi[k].mass = 1.0f;*/
+/*    Pi[k].rho = 0.0f;*/
+/*    Pi[k].density.wcount = 0.0f;*/
+/*    Pj[k].mass = 1.0f;*/
+/*    Pj[k].rho = 0.0f;*/
+/*    Pj[k].density.wcount = 0.0f;*/
+/*    hi[k] = 1.0;*/
+/*    hj[k] = 1.0;*/
+/*    pi[k] = &Pi[k];*/
+/*    pj[k] = &Pj[k];*/
+/*  }*/
 
-  for (k = 0; k <= N; k++) {
-    r2[3] = r2[2];
-    r2[2] = r2[1];
-    r2[1] = r2[0];
-    r2[0] = ((float)k) / N;
-    Pi[0].density.wcount = 0;
-    Pj[0].density.wcount = 0;
-    runner_iact_density(r2[0], NULL, hi[0], hj[0], &Pi[0], &Pj[0]);
-    printf(" %e %e %e", r2[0], Pi[0].density.wcount, Pj[0].density.wcount);
-    Pi[0].density.wcount = 0;
-    Pj[0].density.wcount = 0;
-    Pi[1].density.wcount = 0;
-    Pj[1].density.wcount = 0;
-    Pi[2].density.wcount = 0;
-    Pj[2].density.wcount = 0;
-    Pi[3].density.wcount = 0;
-    Pj[3].density.wcount = 0;
-    runner_iact_vec_density(r2, NULL, hi, hj, pi, pj);
-    printf(" %e %e %e %e\n", Pi[0].density.wcount, Pi[1].density.wcount,
-           Pi[2].density.wcount, Pi[3].density.wcount);
-  }
+/*  for (k = 0; k <= N; k++) {*/
+/*    r2[3] = r2[2];*/
+/*    r2[2] = r2[1];*/
+/*    r2[1] = r2[0];*/
+/*    r2[0] = ((float)k) / N;*/
+/*    Pi[0].density.wcount = 0;*/
+/*    Pj[0].density.wcount = 0;*/
+/*    runner_iact_density(r2[0], NULL, hi[0], hj[0], &Pi[0], &Pj[0]);*/
+/*    printf(" %e %e %e", r2[0], Pi[0].density.wcount, Pj[0].density.wcount);*/
+/*    Pi[0].density.wcount = 0;*/
+/*    Pj[0].density.wcount = 0;*/
+/*    Pi[1].density.wcount = 0;*/
+/*    Pj[1].density.wcount = 0;*/
+/*    Pi[2].density.wcount = 0;*/
+/*    Pj[2].density.wcount = 0;*/
+/*    Pi[3].density.wcount = 0;*/
+/*    Pj[3].density.wcount = 0;*/
+/*    runner_iact_vec_density(r2, NULL, hi, hj, pi, pj);*/
+/*    printf(" %e %e %e %e\n", Pi[0].density.wcount, Pi[1].density.wcount,*/
+/*           Pi[2].density.wcount, Pi[3].density.wcount);*/
+/*  }*/
 }

@@ -65,7 +65,7 @@
 #define const_iepsilon6 (const_iepsilon3* const_iepsilon3)
 
 /* SPH variant to use */
-#define LEGACY_GADGET2_SPH
+/* #define LEGACY_GADGET2_SPH */
 
 /* System of units */
 #define const_unit_length_in_cgs 1   /* 3.08567810e16  /\* 1Mpc *\/ */
