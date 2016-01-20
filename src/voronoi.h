@@ -41,6 +41,124 @@ __attribute__((always_inline)) INLINE static int test_vertex(
 }
 
 /**
+ * @brief Initialize the cell as a cube
+ */
+
+__attribute__((always_inline)) INLINE static void voronoi_initialize(
+    struct part *p){
+    
+    double *origin = p->x;
+    
+    p->voronoi.nvert = 8;
+
+    // (0, 0, 0) -- 0
+    p->voronoi.vertices[0] = -1. - origin[0];
+    p->voronoi.vertices[1] = -1. - origin[1];
+    p->voronoi.vertices[2] = -1. - origin[2];
+    
+    // (0, 0, 1)-- 1
+    p->voronoi.vertices[3] = -1. - origin[0];
+    p->voronoi.vertices[4] = -1. - origin[1];
+    p->voronoi.vertices[5] = 2. - origin[2];
+    
+    // (0, 1, 0) -- 2
+    p->voronoi.vertices[6] = -1. - origin[0];
+    p->voronoi.vertices[7] = 2. - origin[1];
+    p->voronoi.vertices[8] = -1. - origin[2];
+    
+    // (0, 1, 1) -- 3
+    p->voronoi.vertices[9] = -1. - origin[0];
+    p->voronoi.vertices[10] = 2. - origin[1];
+    p->voronoi.vertices[11] = 2. - origin[2];
+    
+    // (1, 0, 0) -- 4
+    p->voronoi.vertices[12] = 2. - origin[0];
+    p->voronoi.vertices[13] = -1. - origin[1];
+    p->voronoi.vertices[14] = -1. - origin[2];
+    
+    // (1, 0, 1) -- 5
+    p->voronoi.vertices[15] = 2. - origin[0];
+    p->voronoi.vertices[16] = -1. - origin[1];
+    p->voronoi.vertices[17] = 2. - origin[2];
+    
+    // (1, 1, 0) -- 6
+    p->voronoi.vertices[18] = 2. - origin[0];
+    p->voronoi.vertices[19] = 2. - origin[1];
+    p->voronoi.vertices[20] = -1. - origin[2];
+    
+    // (1, 1, 1) -- 7
+    p->voronoi.vertices[21] = 2. - origin[0];
+    p->voronoi.vertices[22] = 2. - origin[1];
+    p->voronoi.vertices[23] = 2. - origin[2];
+    
+    // edges are ordered counterclockwise w.r.t. a vector pointing from the
+    // cell generator to the vertex
+    // (0, 0, 0) corner
+    p->voronoi.edges[0] = 1;
+    p->voronoi.edges[1] = 2;
+    p->voronoi.edges[2] = 4;
+    p->voronoi.edges[3] = 0;
+    p->voronoi.edges[4] = 2;
+    p->voronoi.edges[5] = 0;
+    
+    // (0, 0, 1) corner
+    p->voronoi.edges[6] = 0;
+    p->voronoi.edges[7] = 5;
+    p->voronoi.edges[8] = 3;
+    p->voronoi.edges[9] = 0;
+    p->voronoi.edges[10] = 2;
+    p->voronoi.edges[11] = 1;
+    
+    // (0, 1, 0) corner
+    p->voronoi.edges[12] = 3;
+    p->voronoi.edges[13] = 6;
+    p->voronoi.edges[14] = 0;
+    p->voronoi.edges[15] = 0;
+    p->voronoi.edges[16] = 0;
+    p->voronoi.edges[17] = 1;
+    
+    // (0, 1, 1) corner
+    p->voronoi.edges[18] = 2;
+    p->voronoi.edges[19] = 1;
+    p->voronoi.edges[20] = 7;
+    p->voronoi.edges[21] = 0;
+    p->voronoi.edges[22] = 2;
+    p->voronoi.edges[23] = 0;
+    
+    // (1, 0, 0) corner
+    p->voronoi.edges[24] = 0;
+    p->voronoi.edges[25] = 6;
+    p->voronoi.edges[26] = 5;
+    p->voronoi.edges[27] = 2;
+    p->voronoi.edges[28] = 2;
+    p->voronoi.edges[29] = 0;
+    
+    // (1, 0, 1) corner
+    p->voronoi.edges[30] = 4;
+    p->voronoi.edges[31] = 7;
+    p->voronoi.edges[32] = 1;
+    p->voronoi.edges[33] = 2;
+    p->voronoi.edges[34] = 1;
+    p->voronoi.edges[35] = 1;
+    
+    // (1, 1, 0) corner
+    p->voronoi.edges[36] = 2;
+    p->voronoi.edges[37] = 7;
+    p->voronoi.edges[38] = 4;
+    p->voronoi.edges[39] = 1;
+    p->voronoi.edges[40] = 2;
+    p->voronoi.edges[41] = 1;
+    
+    // (1, 1, 1) corner
+    p->voronoi.edges[42] = 3;
+    p->voronoi.edges[43] = 5;
+    p->voronoi.edges[44] = 6;
+    p->voronoi.edges[45] = 2;
+    p->voronoi.edges[46] = 1;
+    p->voronoi.edges[47] = 1;
+}
+
+/**
  * @brief Intersect particle pi with particle pj and adapt its Voronoi cell
  *  structure
  *

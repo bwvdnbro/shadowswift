@@ -507,6 +507,8 @@ void runner_doghost(struct runner *r, struct cell *c) {
   float alpha_dot, tau, S;
 #endif
   float dt_step = r->e->dt_step;
+  int j;
+  float maxsize, r2;
   TIMER_TIC
 
   /* Recurse? */
@@ -549,6 +551,16 @@ void runner_doghost(struct runner *r, struct cell *c) {
                  (4.0f / 3.0 * M_PI * kernel_gamma3);
         wcount_dh =
             p->density.wcount_dh * ih * (4.0f / 3.0 * M_PI * kernel_gamma3);
+        
+        maxsize = 0.0f;
+        for(k = 0; k < p->voronoi.nvert; k++){
+            r2 = 0.0f;
+            for(j = 0; j < 3; j++){
+                r2 += p->voronoi.vertices[3*k+j] * p->voronoi.vertices[3*k+j];
+            }
+            maxsize = fmaxf(r2, maxsize);
+        }
+        printf("%g\n", maxsize);
 
         /* If no derivative, double the smoothing length. */
         if (wcount_dh == 0.0f) h_corr = p->h;
@@ -563,11 +575,12 @@ void runner_doghost(struct runner *r, struct cell *c) {
         }
 
         /* Apply the correction to p->h and to the compact part. */
-        p->h += h_corr;
+/*        p->h += h_corr;*/
 
         /* Did we get the right number density? */
-        if (wcount > kernel_nwneigh + const_delta_nwneigh ||
-            wcount < kernel_nwneigh - const_delta_nwneigh) {
+/*        if (wcount > kernel_nwneigh + const_delta_nwneigh ||*/
+/*            wcount < kernel_nwneigh - const_delta_nwneigh) {*/
+        if(maxsize > 0.25*p->h*p->h){
           // message( "particle %lli (h=%e,depth=%i) has bad wcount=%.3f." ,
           // p->id , p->h , c->depth , wcount ); fflush(stdout);
           // p->h += ( p->density.wcount + kernel_root - kernel_nwneigh ) /
@@ -580,6 +593,7 @@ void runner_doghost(struct runner *r, struct cell *c) {
           p->rho_dh = 0.0;
           p->density.div_v = 0.0;
           for (k = 0; k < 3; k++) p->density.curl_v[k] = 0.0;
+          voronoi_initialize(p);
           continue;
         }
 
@@ -924,6 +938,7 @@ void runner_dokick1(struct runner *r, struct cell *c) {
         p->rho_dh = 0.0f;
         p->density.div_v = 0.0f;
         for (j = 0; j < 3; ++j) p->density.curl_v[j] = 0.0f;
+        voronoi_initialize(p);
       }
     }
 
@@ -1096,6 +1111,7 @@ void runner_dokick(struct runner *r, struct cell *c, int timer) {
       p->density.curl_v[0] = 0.0f;
       p->density.curl_v[1] = 0.0f;
       p->density.curl_v[2] = 0.0f;
+      voronoi_initialize(p);
     }
 
   }

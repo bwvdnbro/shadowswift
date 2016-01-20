@@ -103,6 +103,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   pj->density.div_v += mi * dvdr * wj_dx;
   for (k = 0; k < 3; k++) pj->density.curl_v[k] += mi * curlvr[k] * wj_dx;
 
+  if(pi == pj){
+    error("self interaction!");
+  }
+  
   /* voronoi calculation, added as test */
   voronoi_intersect(r2, dx, pi, pj);
   

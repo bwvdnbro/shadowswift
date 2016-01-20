@@ -479,6 +479,12 @@ void write_output_single(struct engine* e, struct UnitSystem* us) {
              us, UNIT_CONV_ACCELERATION);
   writeArray(h_grp, fileName, xmfFile, "Density", FLOAT, N, 1, parts, rho, us,
              UNIT_CONV_DENSITY);
+  writeArray(h_grp, fileName, xmfFile, "NumVert", INT, N, 1, parts, 
+             voronoi.nvert, us, UNIT_CONV_NO_UNITS);
+  writeArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N, 300, parts,
+             voronoi.vertices, us, UNIT_CONV_LENGTH);
+  writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 600, parts,
+             voronoi.edges, us, UNIT_CONV_NO_UNITS);
 
   /* Close particle group */
   H5Gclose(h_grp);
