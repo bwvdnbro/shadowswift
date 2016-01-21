@@ -1,6 +1,7 @@
 /*******************************************************************************
  * This file is part of SWIFT.
  * Copyright (c) 2012 Matthieu Schaller (matthieu.schaller@durham.ac.uk).
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -83,7 +84,8 @@ enum UnitConversionFactor {
   UNIT_CONV_MAGNETIC_FLUX,
   UNIT_CONV_MAGNETIC_FIELD,
   UNIT_CONV_MAGNETIC_INDUCTANCE,
-  UNIT_CONV_TEMPERATURE
+  UNIT_CONV_TEMPERATURE,
+  UNIT_CONV_VOLUME
 };
 
 /**

@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
 
   /* Initialize Voronoi cells */
   for (k = 0; k < N; k++) {
-    voronoi_initialize(&parts[k]);
+    voronoi_initialize(&parts[k], 2.0f*parts[k].h);
   }
 
   /* Set default number of queues. */

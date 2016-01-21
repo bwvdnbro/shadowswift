@@ -177,6 +177,12 @@ struct part {
     /* Edge information */
     int edges[600];
 
+    /* Volume of the cell */
+    float volume;
+
+    /* Centroid of the cell */
+    float centroid[3];
+
   } voronoi;
 
   /* Particle pressure. */

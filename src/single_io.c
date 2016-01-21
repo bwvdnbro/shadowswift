@@ -2,6 +2,7 @@
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
  *                    Matthieu Schaller (matthieu.schaller@durham.ac.uk).
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -485,6 +486,10 @@ void write_output_single(struct engine* e, struct UnitSystem* us) {
              voronoi.vertices, us, UNIT_CONV_LENGTH);
   writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 600, parts,
              voronoi.edges, us, UNIT_CONV_NO_UNITS);
+  writeArray(h_grp, fileName, xmfFile, "Volume", FLOAT, N, 1, parts,
+             voronoi.volume, us, UNIT_CONV_VOLUME);
+  writeArray(h_grp, fileName, xmfFile, "Centroid", FLOAT, N, 3, parts,
+             voronoi.centroid, us, UNIT_CONV_LENGTH);
 
   /* Close particle group */
   H5Gclose(h_grp);

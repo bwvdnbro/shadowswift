@@ -2,6 +2,7 @@
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
  *                    Matthieu Schaller (matthieu.schaller@durham.ac.uk).
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -256,6 +257,10 @@ void getBaseUnitExponantsArray(float baseUnitsExp[5],
 
     case UNIT_CONV_TEMPERATURE:
       baseUnitsExp[UNIT_TEMPERATURE] = 1.f;
+      break;
+
+    case UNIT_CONV_VOLUME:
+      baseUnitsExp[UNIT_LENGTH] = 3.f;
   }
 }
 

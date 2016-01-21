@@ -41,56 +41,55 @@ __attribute__((always_inline)) INLINE static int test_vertex(
 }
 
 /**
- * @brief Initialize the cell as a cube
+ * @brief Initialize the cell as a cube with side 2*h, centered on the particle
+ *  position
  */
 
 __attribute__((always_inline)) INLINE static void voronoi_initialize(
-    struct part *p){
-    
-    double *origin = p->x;
-    
+    struct part *p, float h){
+
     p->voronoi.nvert = 8;
 
     // (0, 0, 0) -- 0
-    p->voronoi.vertices[0] = -1. - origin[0];
-    p->voronoi.vertices[1] = -1. - origin[1];
-    p->voronoi.vertices[2] = -1. - origin[2];
-    
+    p->voronoi.vertices[0] = -h;
+    p->voronoi.vertices[1] = -h;
+    p->voronoi.vertices[2] = -h;
+
     // (0, 0, 1)-- 1
-    p->voronoi.vertices[3] = -1. - origin[0];
-    p->voronoi.vertices[4] = -1. - origin[1];
-    p->voronoi.vertices[5] = 2. - origin[2];
-    
+    p->voronoi.vertices[3] = -h;
+    p->voronoi.vertices[4] = -h;
+    p->voronoi.vertices[5] = h;
+
     // (0, 1, 0) -- 2
-    p->voronoi.vertices[6] = -1. - origin[0];
-    p->voronoi.vertices[7] = 2. - origin[1];
-    p->voronoi.vertices[8] = -1. - origin[2];
-    
+    p->voronoi.vertices[6] = -h;
+    p->voronoi.vertices[7] = h;
+    p->voronoi.vertices[8] = -h;
+
     // (0, 1, 1) -- 3
-    p->voronoi.vertices[9] = -1. - origin[0];
-    p->voronoi.vertices[10] = 2. - origin[1];
-    p->voronoi.vertices[11] = 2. - origin[2];
-    
+    p->voronoi.vertices[9] = -h;
+    p->voronoi.vertices[10] = h;
+    p->voronoi.vertices[11] = h;
+
     // (1, 0, 0) -- 4
-    p->voronoi.vertices[12] = 2. - origin[0];
-    p->voronoi.vertices[13] = -1. - origin[1];
-    p->voronoi.vertices[14] = -1. - origin[2];
-    
+    p->voronoi.vertices[12] = h;
+    p->voronoi.vertices[13] = -h;
+    p->voronoi.vertices[14] = -h;
+
     // (1, 0, 1) -- 5
-    p->voronoi.vertices[15] = 2. - origin[0];
-    p->voronoi.vertices[16] = -1. - origin[1];
-    p->voronoi.vertices[17] = 2. - origin[2];
-    
+    p->voronoi.vertices[15] = h;
+    p->voronoi.vertices[16] = -h;
+    p->voronoi.vertices[17] = h;
+
     // (1, 1, 0) -- 6
-    p->voronoi.vertices[18] = 2. - origin[0];
-    p->voronoi.vertices[19] = 2. - origin[1];
-    p->voronoi.vertices[20] = -1. - origin[2];
-    
+    p->voronoi.vertices[18] = h;
+    p->voronoi.vertices[19] = h;
+    p->voronoi.vertices[20] = -h;
+
     // (1, 1, 1) -- 7
-    p->voronoi.vertices[21] = 2. - origin[0];
-    p->voronoi.vertices[22] = 2. - origin[1];
-    p->voronoi.vertices[23] = 2. - origin[2];
-    
+    p->voronoi.vertices[21] = h;
+    p->voronoi.vertices[22] = h;
+    p->voronoi.vertices[23] = h;
+
     // edges are ordered counterclockwise w.r.t. a vector pointing from the
     // cell generator to the vertex
     // (0, 0, 0) corner
@@ -100,7 +99,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[3] = 0;
     p->voronoi.edges[4] = 2;
     p->voronoi.edges[5] = 0;
-    
+
     // (0, 0, 1) corner
     p->voronoi.edges[6] = 0;
     p->voronoi.edges[7] = 5;
@@ -108,7 +107,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[9] = 0;
     p->voronoi.edges[10] = 2;
     p->voronoi.edges[11] = 1;
-    
+
     // (0, 1, 0) corner
     p->voronoi.edges[12] = 3;
     p->voronoi.edges[13] = 6;
@@ -116,7 +115,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[15] = 0;
     p->voronoi.edges[16] = 0;
     p->voronoi.edges[17] = 1;
-    
+
     // (0, 1, 1) corner
     p->voronoi.edges[18] = 2;
     p->voronoi.edges[19] = 1;
@@ -124,7 +123,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[21] = 0;
     p->voronoi.edges[22] = 2;
     p->voronoi.edges[23] = 0;
-    
+
     // (1, 0, 0) corner
     p->voronoi.edges[24] = 0;
     p->voronoi.edges[25] = 6;
@@ -132,7 +131,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[27] = 2;
     p->voronoi.edges[28] = 2;
     p->voronoi.edges[29] = 0;
-    
+
     // (1, 0, 1) corner
     p->voronoi.edges[30] = 4;
     p->voronoi.edges[31] = 7;
@@ -140,7 +139,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[33] = 2;
     p->voronoi.edges[34] = 1;
     p->voronoi.edges[35] = 1;
-    
+
     // (1, 1, 0) corner
     p->voronoi.edges[36] = 2;
     p->voronoi.edges[37] = 7;
@@ -148,7 +147,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[39] = 1;
     p->voronoi.edges[40] = 2;
     p->voronoi.edges[41] = 1;
-    
+
     // (1, 1, 1) corner
     p->voronoi.edges[42] = 3;
     p->voronoi.edges[43] = 5;
@@ -319,7 +318,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
        up, us and u correspond to the same values for the point above the plane */
     
     /* create a delete stack for vertices that should be removed */
-    int dstack[100];
+    int dstack[1000];
     int dstack_size = 1;
     
     float r = u/(u-l);
@@ -382,7 +381,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             qp = lp;
             q = l;
             dstack_size++;
-            if(dstack_size == 101){
+            if(dstack_size == 1001){
                 error("delete stack too small");
             }
             dstack[dstack_size-1] = qp;
@@ -440,7 +439,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
         for(int j = 0; j < 3; j++){
             if(pi->voronoi.edges[6*dstack[i]+j] >= 0){
                 dstack_size++;
-                if(dstack_size == 101){
+                if(dstack_size == 1001){
                     error("delete stack too small");
                 }
                 dstack[dstack_size-1] = pi->voronoi.edges[6*dstack[i]+j];
@@ -502,6 +501,134 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     
     /* resize the internal arrays */
     pi->voronoi.nvert = newnvert;
+
+}
+
+__attribute__((always_inline)) INLINE static float calculate_volume_tetrahedron(
+    float *v1, float *v2, float *v3, float *v4){
+
+    float V;
+    float r1[3], r2[3], r3[3];
+
+    r1[0] = v2[0] - v1[0];
+    r1[1] = v2[1] - v1[1];
+    r1[2] = v2[2] - v1[2];
+    r2[0] = v3[0] - v1[0];
+    r2[1] = v3[1] - v1[1];
+    r2[2] = v3[2] - v1[2];
+    r3[0] = v4[0] - v1[0];
+    r3[1] = v4[1] - v1[1];
+    r3[2] = v4[2] - v1[2];
+    V = fabs(r1[0]*r2[1]*r3[2] + r1[1]*r2[2]*r3[0] + r1[2]*r2[0]*r3[1] -
+             r1[2]*r2[1]*r3[0] - r2[2]*r3[1]*r1[0] - r3[2]*r1[1]*r2[0]);
+    V /= 6.;
+    return V;
+
+}
+
+__attribute__((always_inline)) INLINE static void calculate_centroid_tetrahedron(
+    float *centroid, float *v1, float *v2, float *v3, float *v4){
+
+    centroid[0] = 0.25f*(v1[0] + v2[0] + v3[0] + v4[0]);
+    centroid[1] = 0.25f*(v1[1] + v2[1] + v3[1] + v4[1]);
+    centroid[2] = 0.25f*(v1[2] + v2[2] + v3[2] + v4[2]);
+
+}
+
+__attribute__((always_inline)) INLINE static void calculate_cell(
+    struct part *p){
+    /* we need to calculate the volume of the tetrahedra formed by the first
+       vertex and the triangles that make up the other faces
+       since we do not store faces explicitly, this means keeping track of the
+       edges that have been processed somehow
+       we follow the method used in voro++ and "flip" processed edges to
+       negative values
+       this also means that we need to process all triangles corresponding to
+       an edge at once */
+    p->voronoi.volume = 0.0f;
+    float v1[3], v2[3], v3[3], v4[3];
+    v1[0] = p->voronoi.vertices[0];
+    v1[1] = p->voronoi.vertices[1];
+    v1[2] = p->voronoi.vertices[2];
+    p->voronoi.centroid[0] = 0.0f;
+    p->voronoi.centroid[1] = 0.0f;
+    p->voronoi.centroid[2] = 0.0f;
+    
+    /* loop over all vertices (except the first one) */
+    for(int i = 1; i < p->voronoi.nvert; i++){
+        v2[0] = p->voronoi.vertices[3*i];
+        v2[1] = p->voronoi.vertices[3*i+1];
+        v2[2] = p->voronoi.vertices[3*i+2];
+        
+        /*  loop over the edges of the vertex*/
+        for(int j = 0; j < 3; j++){
+            int k = p->voronoi.edges[6*i+j];
+            /* check if the edge has already been processed */
+            if(k >= 0){
+                /* mark the edge as processed */
+                p->voronoi.edges[6*i+j] = -k-1;
+                
+                /* do some magic
+                   code below brainlessly copied from voro++ */
+                int l = p->voronoi.edges[6*i+3+j];
+                if(l == 2){
+                    l = 0;
+                } else {
+                    l++;
+                }
+                v3[0] = p->voronoi.vertices[3*k];
+                v3[1] = p->voronoi.vertices[3*k+1];
+                v3[2] = p->voronoi.vertices[3*k+2];
+                int m = p->voronoi.edges[6*k+l];
+                p->voronoi.edges[6*k+l] = -1-m;
+                while(m != (int)i){
+                    int n = p->voronoi.edges[6*k+3+l];
+                    if(n == 2){
+                        n = 0;
+                    } else {
+                        n++;
+                    }
+                    v4[0] = p->voronoi.vertices[3*m];
+                    v4[1] = p->voronoi.vertices[3*m+1];
+                    v4[2] = p->voronoi.vertices[3*m+2];
+                    float tvol = calculate_volume_tetrahedron(v1, v2, v3, v4);
+                    p->voronoi.volume += tvol;
+                    float tcentroid[3];
+                    calculate_centroid_tetrahedron(tcentroid, v1, v2, v3, v4);
+                    p->voronoi.centroid[0] += tcentroid[0]*tvol;
+                    p->voronoi.centroid[1] += tcentroid[1]*tvol;
+                    p->voronoi.centroid[2] += tcentroid[2]*tvol;
+                    k = m;
+                    l = n;
+                    v3[0] = v4[0];
+                    v3[1] = v4[1];
+                    v3[2] = v4[2];
+                    m = p->voronoi.edges[6*k+l];
+                    p->voronoi.edges[6*k+l] = -1-m;
+                }
+            }
+        }
+    }
+    
+    p->voronoi.centroid[0] /= p->voronoi.volume;
+    p->voronoi.centroid[1] /= p->voronoi.volume;
+    p->voronoi.centroid[2] /= p->voronoi.volume;
+    
+    /* centroid was calculated relative w.r.t. particle position */
+    p->voronoi.centroid[0] += p->x[0];
+    p->voronoi.centroid[1] += p->x[1];
+    p->voronoi.centroid[2] += p->x[2];
+    
+    // unmark edges
+    for(int i = 0; i < p->voronoi.nvert; i++){
+        for(int j = 0; j < 3; j++){
+            if(p->voronoi.edges[6*i+j] < 0){
+                p->voronoi.edges[6*i+j] = -p->voronoi.edges[6*i+j]-1;
+            } else {
+                error("edge inconsistency");
+            }
+        }
+    }
 
 }
 

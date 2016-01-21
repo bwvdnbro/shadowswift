@@ -1,6 +1,7 @@
 /*******************************************************************************
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk)
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -560,6 +561,7 @@ void runner_doghost(struct runner *r, struct cell *c) {
             }
             maxsize = fmaxf(r2, maxsize);
         }
+        maxsize = sqrtf(maxsize);
 
         /* If no derivative, double the smoothing length. */
         if (wcount_dh == 0.0f) h_corr = p->h;
@@ -576,7 +578,7 @@ void runner_doghost(struct runner *r, struct cell *c) {
         /* Did we get the right number density? */
 /*        if (wcount > kernel_nwneigh + const_delta_nwneigh ||*/
 /*            wcount < kernel_nwneigh - const_delta_nwneigh) {*/
-        if(maxsize > 0.25*p->h*p->h){
+        if(maxsize > 0.5*p->h){
           // message( "particle %lli (h=%e,depth=%i) has bad wcount=%.3f." ,
           // p->id , p->h , c->depth , wcount ); fflush(stdout);
           // p->h += ( p->density.wcount + kernel_root - kernel_nwneigh ) /
@@ -589,12 +591,18 @@ void runner_doghost(struct runner *r, struct cell *c) {
           p->rho_dh = 0.0;
           p->density.div_v = 0.0;
           for (k = 0; k < 3; k++) p->density.curl_v[k] = 0.0;
-          voronoi_initialize(p);
 
           /* Apply the correction to p->h and to the compact part. */
 /*          p->h += h_corr;*/
-          p->h = 1.5f*sqrtf(maxsize);
+          p->h = 2.1f*maxsize;
+          voronoi_initialize(p, 2.0f*p->h);
           continue;
+        } else {
+          /* cell is complete, set size for next step */
+          p->h = 2.1*maxsize;
+          
+          /* calculate volume and centroid */
+          calculate_cell(p);
         }
 
         /* Pre-compute some stuff for the balsara switch. */
@@ -938,7 +946,7 @@ void runner_dokick1(struct runner *r, struct cell *c) {
         p->rho_dh = 0.0f;
         p->density.div_v = 0.0f;
         for (j = 0; j < 3; ++j) p->density.curl_v[j] = 0.0f;
-        voronoi_initialize(p);
+        voronoi_initialize(p, 2.0f*p->h);
       }
     }
 
@@ -1111,7 +1119,7 @@ void runner_dokick(struct runner *r, struct cell *c, int timer) {
       p->density.curl_v[0] = 0.0f;
       p->density.curl_v[1] = 0.0f;
       p->density.curl_v[2] = 0.0f;
-      voronoi_initialize(p);
+      voronoi_initialize(p, 2.0f*p->h);
     }
 
   }
