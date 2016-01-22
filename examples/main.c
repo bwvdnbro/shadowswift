@@ -83,6 +83,8 @@ int main(int argc, char *argv[]) {
   char ICfileName[200] = "";
   char dumpfile[30];
   float dt_max = 0.0f;
+  float dt_snap = 0.0f;
+  unsigned int numsnap = 1;
   ticks tic;
   int nr_nodes = 1, myrank = 0, grid[3] = {1, 1, 1};
   FILE *file_thread;
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]) {
   bzero(&s, sizeof(struct space));
 
   /* Parse the options */
-  while ((c = getopt(argc, argv, "a:c:d:f:g:m:q:r:s:t:w:y:z:")) != -1)
+  while ((c = getopt(argc, argv, "a:c:d:f:g:i:m:q:r:s:t:w:y:z:")) != -1)
     switch (c) {
       case 'a':
         if (sscanf(optarg, "%lf", &scaling) != 1)
@@ -147,6 +149,10 @@ int main(int argc, char *argv[]) {
       case 'g':
         if (sscanf(optarg, "%i %i %i", &grid[0], &grid[1], &grid[2]) != 3)
           error("Error parsing grid.");
+        break;
+      case 'i':
+        if (sscanf(optarg, "%f", &dt_snap) != 1)
+          error("Error parsing snapshot interval.");
         break;
       case 'm':
         if (sscanf(optarg, "%lf", &h_max) != 1) error("Error parsing h_max.");
@@ -275,9 +281,20 @@ int main(int argc, char *argv[]) {
       parts[k].x[2] += shift[2];
     }
 
-  /* Initialize Voronoi cells */
+  /* Moving mesh initialization */
   for (k = 0; k < N; k++) {
+    /* Initialize Voronoi cells */
     voronoi_initialize(&parts[k], 2.0f*parts[k].h);
+
+    /* Convert thermal energy to pressure */
+    parts[k].primitives.P *= (const_hydro_gamma - 1.0f) *
+                               parts[k].primitives.rho;
+    /* Initialize flow velocity */
+    parts[k].primitives.v[0] = parts[k].v[0];
+    parts[k].primitives.v[1] = parts[k].v[1];
+    parts[k].primitives.v[2] = parts[k].v[2];
+    /* Initialize mass to 0 */
+    parts[k].conserved.m = 0.0f;
   }
 
   /* Set default number of queues. */
@@ -367,16 +384,21 @@ int main(int argc, char *argv[]) {
 
   if (myrank == 0) {
     /* Inauguration speech. */
-    if (runs < INT_MAX)
+    if (runs < INT_MAX) {
       message(
           "Running on %lld particles for %i steps with %i threads and %i "
           "queues...",
           N_total, runs, e.nr_threads, e.sched.nr_queues);
-    else
+    } else {
       message(
           "Running on %lld particles until t=%.3e with %i threads and %i "
           "queues...",
           N_total, clock, e.nr_threads, e.sched.nr_queues);
+      if(!dt_snap){
+        dt_snap = 0.1*clock;
+      }
+    }
+    message("Writing a snapshot approximately every Delta_t=%.3e", dt_snap);
     fflush(stdout);
   }
 
@@ -400,7 +422,7 @@ int main(int argc, char *argv[]) {
     /* Take a step. */
     engine_step(&e);
 
-    if (with_outputs && j % 100 == 0) {
+    if (with_outputs && numsnap*dt_snap <= e.time) {
 
 #if defined(WITH_MPI)
 #if defined(HAVE_PARALLEL_HDF5)
@@ -413,6 +435,7 @@ int main(int argc, char *argv[]) {
 #else
       write_output_single(&e, &us);
 #endif
+      numsnap++;
     }
 
   /* Dump the task data using the given frequency. */

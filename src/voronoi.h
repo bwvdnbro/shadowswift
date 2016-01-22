@@ -29,7 +29,7 @@
 __attribute__((always_inline)) INLINE static int test_vertex(
     float *v, float *dx, float r2, float *test){
 
-    *test = -v[0]*dx[0] - v[1]*dx[1] - v[2]*dx[2] - r2;
+    *test = v[0]*dx[0] + v[1]*dx[1] + v[2]*dx[2] - r2;
     if(*test <= 0.){
         return -1;
     }
@@ -629,6 +629,124 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
             }
         }
     }
+
+}
+
+__attribute__((always_inline)) INLINE static void calculate_faces(
+    struct part *p){
+
+    p->voronoi.nface = 0;
+    for(int i = 0; i < p->voronoi.nvert; i++){
+        for(int j = 0; j < 3; j++){
+            int k = p->voronoi.edges[6*i+j];
+            if(k >= 0){
+                float area = 0.;
+                float midpoint[3];
+                midpoint[0] = 0.;
+                midpoint[1] = 0.;
+                midpoint[2] = 0.;
+                p->voronoi.edges[6*i+j] = -1 - k;
+                int l = p->voronoi.edges[6*i+3+j] + 1;
+                if(l == 3){
+                    l = 0;
+                }
+                int m = p->voronoi.edges[6*k+l];
+                p->voronoi.edges[6*k+l] = -1 - m;
+                while(m != i){
+                    int n = p->voronoi.edges[6*k+3+l] + 1;
+                    if(n == 3){
+                        n = 0;
+                    }
+                    float u[3], v[3], w[3];
+                    u[0] = p->voronoi.vertices[3*k+0] - p->voronoi.vertices[3*i+0];
+                    u[1] = p->voronoi.vertices[3*k+1] - p->voronoi.vertices[3*i+1];
+                    u[2] = p->voronoi.vertices[3*k+2] - p->voronoi.vertices[3*i+2];
+                    v[0] = p->voronoi.vertices[3*m+0] - p->voronoi.vertices[3*i+0];
+                    v[1] = p->voronoi.vertices[3*m+1] - p->voronoi.vertices[3*i+1];
+                    v[2] = p->voronoi.vertices[3*m+2] - p->voronoi.vertices[3*i+2];
+                    w[0] = u[1]*v[2] - u[2]*v[1];
+                    w[1] = u[2]*v[0] - u[0]*v[2];
+                    w[2] = u[0]*v[1] - u[1]*v[0];
+                    float loc_area = sqrtf(w[0]*w[0] + w[1]*w[1] + w[2]*w[2]);
+                    area += loc_area;
+                    midpoint[0] += loc_area*(p->voronoi.vertices[3*k+0] +
+                                             p->voronoi.vertices[3*i+0] +
+                                             p->voronoi.vertices[3*m+0]);
+                    midpoint[1] += loc_area*(p->voronoi.vertices[3*k+1] +
+                                             p->voronoi.vertices[3*i+1] +
+                                             p->voronoi.vertices[3*m+1]);
+                    midpoint[2] += loc_area*(p->voronoi.vertices[3*k+2] +
+                                             p->voronoi.vertices[3*i+2] +
+                                             p->voronoi.vertices[3*m+2]);
+                    k = m;
+                    l = n;
+                    m = p->voronoi.edges[6*k+l];
+                    p->voronoi.edges[6*k+l] = -1 - m;
+                }
+                p->voronoi.face_areas[p->voronoi.nface] = 0.5f*area;
+                p->voronoi.face_midpoints[3*p->voronoi.nface+0] = midpoint[0]/area/3.0f;
+                p->voronoi.face_midpoints[3*p->voronoi.nface+1] = midpoint[1]/area/3.0f;
+                p->voronoi.face_midpoints[3*p->voronoi.nface+2] = midpoint[2]/area/3.0f;
+                /* face midpoint was calculated relative to particle position */
+                p->voronoi.face_midpoints[3*p->voronoi.nface+0] += p->x[0];
+                p->voronoi.face_midpoints[3*p->voronoi.nface+1] += p->x[1];
+                p->voronoi.face_midpoints[3*p->voronoi.nface+2] += p->x[2];
+                p->voronoi.nface++;
+            }
+        }
+    }
+    
+    /* unmark edges */
+    for(int i = 0; i < p->voronoi.nvert; i++){
+        for(int j = 0; j < 3; j++){
+            if(p->voronoi.edges[6*i+j] < 0){
+                p->voronoi.edges[6*i+j] = -p->voronoi.edges[6*i+j]-1;
+            } else {
+                error("edge inconsistency");
+            }
+        }
+    }
+
+}
+
+/**
+ * @brief Get the index of the face between pi and pj
+ *
+ * If the face does not exist, we return -1.
+ */
+
+__attribute__((always_inline)) INLINE static int voronoi_get_face_index(
+    struct part *pi, struct part *pj){
+
+    float ri2, rj2;
+    for(int i = 0; i < pi->voronoi.nface; i++){
+        ri2 = 0.0f;
+        for(int j = 0; j < 3; j++){
+            float x = pi->voronoi.face_midpoints[3*i+j] - pi->x[j];
+            if(x < -0.5f){
+                x += 1.0f;
+            }
+            if(x > 0.5f){
+                x -= 1.0f;
+            }
+            ri2 += x * x;
+        }
+        rj2 = 0.0f;
+        for(int j = 0; j < 3; j++){
+            float x = pi->voronoi.face_midpoints[3*i+j] - pj->x[j];
+            if(x < -0.5f){
+                x += 1.0f;
+            }
+            if(x > 0.5f){
+                x -= 1.0f;
+            }
+            rj2 += x * x;
+        }
+        if(fabs(ri2-rj2) < 1.e-8){
+            return i;
+        }
+    }
+    return -1;
 
 }
 

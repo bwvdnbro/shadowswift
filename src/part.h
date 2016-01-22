@@ -183,7 +183,53 @@ struct part {
     /* Centroid of the cell */
     float centroid[3];
 
+    /* Number of faces */
+    int nface;
+
+    /* Face areas of the cell faces */
+    float face_areas[100];
+
+    /* Face midpoints */
+    float face_midpoints[300];
+
   } voronoi;
+
+  /* Primitive variables */
+  struct {
+
+    /* Density */
+    float rho;
+
+    /* Flow velocity */
+    float v[3];
+
+    /* Pressure */
+    float P;
+
+  } primitives;
+
+  /* Conserved variables */
+  struct {
+
+    /* Mass */
+    float m;
+
+    /* Momentum */
+    float p[3];
+
+    /* Energy */
+    float e;
+
+    /* Mass change */
+    float dm;
+
+    /* Momentum change */
+    float dp[3];
+
+    /* Energy change */
+    float de;
+
+  } conserved;
 
   /* Particle pressure. */
   // float P;

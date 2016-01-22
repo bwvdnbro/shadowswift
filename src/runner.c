@@ -603,6 +603,35 @@ void runner_doghost(struct runner *r, struct cell *c) {
           
           /* calculate volume and centroid */
           calculate_cell(p);
+          /* calculate faces */
+          calculate_faces(p);
+
+          /* convert conserved variables to primitive variables */
+          /* except for step 1, when we have to initialize the conserved
+             variables */
+          if(p->conserved.m){
+            p->primitives.rho = p->conserved.m / p->voronoi.volume;
+            p->primitives.v[0] = p->conserved.p[0] / p->conserved.m;
+            p->primitives.v[1] = p->conserved.p[1] / p->conserved.m;
+            p->primitives.v[2] = p->conserved.p[2] / p->conserved.m;
+            float p2 = p->conserved.p[0] * p->conserved.p[0] +
+                         p->conserved.p[1] * p->conserved.p[1] +
+                         p->conserved.p[2] * p->conserved.p[2];
+            p->primitives.P = (const_hydro_gamma - 1.0f) *
+                                (p->conserved.e - 0.5f*p2/p->conserved.m) /
+                                p->voronoi.volume;
+          } else {
+            p->conserved.m = p->primitives.rho * p->voronoi.volume;
+            p->conserved.p[0] = p->conserved.m * p->primitives.v[0];
+            p->conserved.p[1] = p->conserved.m * p->primitives.v[1];
+            p->conserved.p[2] = p->conserved.m * p->primitives.v[2];
+            float p2 = p->conserved.p[0] * p->conserved.p[0] +
+                         p->conserved.p[1] * p->conserved.p[1] +
+                         p->conserved.p[2] * p->conserved.p[2];
+            p->conserved.e = 0.5 * p2 / p->conserved.m + 
+                               p->primitives.P * p->voronoi.volume /
+                               (const_hydro_gamma - 1.0f);
+          }
         }
 
         /* Pre-compute some stuff for the balsara switch. */
@@ -770,6 +799,7 @@ void runner_dokick2(struct runner *r, struct cell *c) {
       dt_u_change =
           (u_dt != 0.0f) ? fabsf(const_max_u_change * p->u / u_dt) : FLT_MAX;
       dt_new = fminf(dt_cfl, fminf(dt_h_change, dt_u_change));
+      dt_new = 0.1f/64.0f;
       if (pdt == 0.0f)
         p->dt = pdt = dt_new;
       else
@@ -900,13 +930,27 @@ void runner_dokick1(struct runner *r, struct cell *c) {
       xp->u_hdt = u + hdt * u_dt;
 
       /* Move the particles with the velocities at the half-step. */
-      p->x[0] = x[0] += dt * xp->v_hdt[0];
-      p->x[1] = x[1] += dt * xp->v_hdt[1];
-      p->x[2] = x[2] += dt * xp->v_hdt[2];
+/*      p->x[0] = x[0] += dt * xp->v_hdt[0];*/
+/*      p->x[1] = x[1] += dt * xp->v_hdt[1];*/
+/*      p->x[2] = x[2] += dt * xp->v_hdt[2];*/
       dx = sqrtf((x[0] - x_old[0]) * (x[0] - x_old[0]) +
                  (x[1] - x_old[1]) * (x[1] - x_old[1]) +
                  (x[2] - x_old[2]) * (x[2] - x_old[2]));
       dx_max = fmaxf(dx_max, dx);
+
+      /* Update conserved variables */
+      p->conserved.m += dt * p->conserved.dm;
+      p->conserved.p[0] += dt * p->conserved.dp[0];
+      p->conserved.p[1] += dt * p->conserved.dp[1];
+      p->conserved.p[2] += dt * p->conserved.dp[2];
+      p->conserved.e += dt * p->conserved.de;
+
+      /* Reset flux variables */
+      p->conserved.dm = 0.0f;
+      p->conserved.dp[0] = 0.0f;
+      p->conserved.dp[1] = 0.0f;
+      p->conserved.dp[2] = 0.0f;
+      p->conserved.de = 0.0f;
 
       /* Update positions and energies at the half-step. */
       p->v[0] = v[0] + dt * a[0];
@@ -920,12 +964,13 @@ void runner_dokick1(struct runner *r, struct cell *c) {
       else
         p->u = u *= expf(w);
       w = h_dt / h * dt;
-      if (fabsf(w) < 0.01f)
-        p->h = h *=
-            1.0f +
-            w * (1.0f + w * (0.5f + w * (1.0f / 6.0f + 1.0f / 24.0f * w)));
-      else
-        p->h = h *= expf(w);
+/*      if (fabsf(w) < 0.01f)*/
+/*        p->h = h *=*/
+/*            1.0f +*/
+/*            w * (1.0f + w * (0.5f + w * (1.0f / 6.0f + 1.0f / 24.0f * w)));*/
+/*      else*/
+/*        p->h = h *= expf(w);*/
+      h = p->h;
       h_max = fmaxf(h_max, h);
 
       /* Integrate other values if this particle will not be updated. */
