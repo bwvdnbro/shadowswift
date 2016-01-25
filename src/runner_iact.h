@@ -174,55 +174,64 @@ __attribute__((always_inline)) INLINE static void runner_iact_force_common(
   int idx = voronoi_get_face_index(pi, pj);
   if(idx >= 0){
     float A = pi->voronoi.face_areas[idx];
+    float midface[3];
+    midface[0] = pi->voronoi.face_midpoints[3*idx];
+    midface[1] = pi->voronoi.face_midpoints[3*idx+1];
+    midface[2] = pi->voronoi.face_midpoints[3*idx+2];
+    float vface[3];
+    voronoi_get_face_velocity(pi, pj, midface, vface);
     float WL[5], WR[5], Whalf[5];
     float n_unit[3];
     float r = sqrtf(r2);
-//    float vproj;
     float ehalf;
     float v2;
     float flux[5][3];
 
     WL[0] = pi->primitives.rho;
-    WL[1] = pi->primitives.v[0];
-    WL[2] = pi->primitives.v[1];
-    WL[3] = pi->primitives.v[2];
+    WL[1] = pi->primitives.v[0] - vface[0];
+    WL[2] = pi->primitives.v[1] - vface[1];
+    WL[3] = pi->primitives.v[2] - vface[2];
     WL[4] = pi->primitives.P;
 
     WR[0] = pj->primitives.rho;
-    WR[1] = pj->primitives.v[0];
-    WR[2] = pj->primitives.v[1];
-    WR[3] = pj->primitives.v[2];
+    WR[1] = pj->primitives.v[0] - vface[0];
+    WR[2] = pj->primitives.v[1] - vface[1];
+    WR[3] = pj->primitives.v[2] - vface[2];
     WR[4] = pj->primitives.P;
 
-    n_unit[0] = dx[0]/r;
-    n_unit[1] = dx[1]/r;
-    n_unit[2] = dx[2]/r;
+    /* dx = pi->x - pj->x */
+    n_unit[0] = -dx[0]/r;
+    n_unit[1] = -dx[1]/r;
+    n_unit[2] = -dx[2]/r;
 
     riemann_solver_solve(WL, WR, Whalf, n_unit);
 
-//    vproj = Whalf[1]*n_unit[0] + Whalf[2]*n_unit[1] + Whalf[3]*n_unit[2];
+    Whalf[1] += vface[0];
+    Whalf[2] += vface[1];
+    Whalf[3] += vface[2];
+
     v2 = Whalf[1] * Whalf[1] + Whalf[2] * Whalf[2] + Whalf[3] * Whalf[3];
     ehalf = Whalf[4] / (const_hydro_gamma - 1.0f) / Whalf[0] + 0.5 * v2;
 
-    flux[0][0] = Whalf[0] * Whalf[1];
-    flux[0][1] = Whalf[0] * Whalf[2];
-    flux[0][2] = Whalf[0] * Whalf[3];
+    flux[0][0] = Whalf[0] * (Whalf[1] - vface[0]);
+    flux[0][1] = Whalf[0] * (Whalf[2] - vface[1]);
+    flux[0][2] = Whalf[0] * (Whalf[3] - vface[2]);
 
-    flux[1][0] = Whalf[0] * Whalf[1] * Whalf[1] + Whalf[4];
-    flux[1][1] = Whalf[0] * Whalf[1] * Whalf[2];
-    flux[1][2] = Whalf[0] * Whalf[1] * Whalf[3];
+    flux[1][0] = Whalf[0] * Whalf[1] * (Whalf[1] - vface[0]) + Whalf[4];
+    flux[1][1] = Whalf[0] * Whalf[1] * (Whalf[2] - vface[1]);
+    flux[1][2] = Whalf[0] * Whalf[1] * (Whalf[3] - vface[2]);
 
-    flux[2][0] = Whalf[0] * Whalf[2] * Whalf[1];
-    flux[2][1] = Whalf[0] * Whalf[2] * Whalf[2] + Whalf[4];
-    flux[2][2] = Whalf[0] * Whalf[2] * Whalf[3];
+    flux[2][0] = Whalf[0] * Whalf[2] * (Whalf[1] - vface[0]);
+    flux[2][1] = Whalf[0] * Whalf[2] * (Whalf[2] - vface[1]) + Whalf[4];
+    flux[2][2] = Whalf[0] * Whalf[2] * (Whalf[3] - vface[2]);
 
-    flux[3][0] = Whalf[0] * Whalf[3] * Whalf[1];
-    flux[3][1] = Whalf[0] * Whalf[3] * Whalf[2];
-    flux[3][2] = Whalf[0] * Whalf[3] * Whalf[3] + Whalf[4];
+    flux[3][0] = Whalf[0] * Whalf[3] * (Whalf[1] - vface[0]);
+    flux[3][1] = Whalf[0] * Whalf[3] * (Whalf[2] - vface[1]);
+    flux[3][2] = Whalf[0] * Whalf[3] * (Whalf[3] - vface[2]) + Whalf[4];
 
-    flux[4][0] = Whalf[0] * ehalf * Whalf[1] + Whalf[4] * Whalf[1];
-    flux[4][1] = Whalf[0] * ehalf * Whalf[2] + Whalf[4] * Whalf[2];
-    flux[4][2] = Whalf[0] * ehalf * Whalf[3] + Whalf[4] * Whalf[3];
+    flux[4][0] = Whalf[0] * ehalf * (Whalf[1] - vface[0]) + Whalf[4] * Whalf[1];
+    flux[4][1] = Whalf[0] * ehalf * (Whalf[2] - vface[1]) + Whalf[4] * Whalf[2];
+    flux[4][2] = Whalf[0] * ehalf * (Whalf[3] - vface[2]) + Whalf[4] * Whalf[3];
 
 //    pi->conserved.dm -= (Whalf[0] * vproj) * A;
 //    pi->conserved.dp[0] -= (Whalf[0] * Whalf[1] * vproj + Whalf[4]*n_unit[0]) * A;
@@ -235,17 +244,17 @@ __attribute__((always_inline)) INLINE static void runner_iact_force_common(
 //    pj->conserved.dp[1] += (Whalf[0] * Whalf[2] * vproj + Whalf[4]*n_unit[1]) * A;
 //    pj->conserved.dp[2] += (Whalf[0] * Whalf[3] * vproj + Whalf[4]*n_unit[2]) * A;
 //    pj->conserved.de += (Whalf[0] * ehalf * vproj + Whalf[4] * vproj) * A;
-    pi->conserved.dm -= A * (flux[0][0] * n_unit[0] + flux[0][1] * n_unit[1] + flux[0][2] * n_unit[2]);
-    pi->conserved.dp[0] -= A * (flux[1][0] * n_unit[0] + flux[1][1] * n_unit[1] + flux[1][2] * n_unit[2]);
-    pi->conserved.dp[1] -= A * (flux[2][0] * n_unit[0] + flux[2][1] * n_unit[1] + flux[2][2] * n_unit[2]);
-    pi->conserved.dp[2] -= A * (flux[3][0] * n_unit[0] + flux[3][1] * n_unit[1] + flux[3][2] * n_unit[2]);
-    pi->conserved.de -= A * (flux[4][0] * n_unit[0] + flux[4][1] * n_unit[1] + flux[4][2] * n_unit[2]);
+    pi->conserved.dm += A * (flux[0][0] * n_unit[0] + flux[0][1] * n_unit[1] + flux[0][2] * n_unit[2]);
+    pi->conserved.dp[0] += A * (flux[1][0] * n_unit[0] + flux[1][1] * n_unit[1] + flux[1][2] * n_unit[2]);
+    pi->conserved.dp[1] += A * (flux[2][0] * n_unit[0] + flux[2][1] * n_unit[1] + flux[2][2] * n_unit[2]);
+    pi->conserved.dp[2] += A * (flux[3][0] * n_unit[0] + flux[3][1] * n_unit[1] + flux[3][2] * n_unit[2]);
+    pi->conserved.de += A * (flux[4][0] * n_unit[0] + flux[4][1] * n_unit[1] + flux[4][2] * n_unit[2]);
 
-    pj->conserved.dm += A * (flux[0][0] * n_unit[0] + flux[0][1] * n_unit[1] + flux[0][2] * n_unit[2]);
-    pj->conserved.dp[0] += A * (flux[1][0] * n_unit[0] + flux[1][1] * n_unit[1] + flux[1][2] * n_unit[2]);
-    pj->conserved.dp[1] += A * (flux[2][0] * n_unit[0] + flux[2][1] * n_unit[1] + flux[2][2] * n_unit[2]);
-    pj->conserved.dp[2] += A * (flux[3][0] * n_unit[0] + flux[3][1] * n_unit[1] + flux[3][2] * n_unit[2]);
-    pj->conserved.de += A * (flux[4][0] * n_unit[0] + flux[4][1] * n_unit[1] + flux[4][2] * n_unit[2]);
+    pj->conserved.dm -= A * (flux[0][0] * n_unit[0] + flux[0][1] * n_unit[1] + flux[0][2] * n_unit[2]);
+    pj->conserved.dp[0] -= A * (flux[1][0] * n_unit[0] + flux[1][1] * n_unit[1] + flux[1][2] * n_unit[2]);
+    pj->conserved.dp[1] -= A * (flux[2][0] * n_unit[0] + flux[2][1] * n_unit[1] + flux[2][2] * n_unit[2]);
+    pj->conserved.dp[2] -= A * (flux[3][0] * n_unit[0] + flux[3][1] * n_unit[1] + flux[3][2] * n_unit[2]);
+    pj->conserved.de -= A * (flux[4][0] * n_unit[0] + flux[4][1] * n_unit[1] + flux[4][2] * n_unit[2]);
   }
 
 }

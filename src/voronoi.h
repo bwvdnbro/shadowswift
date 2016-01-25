@@ -411,7 +411,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     while(qp != up || qs != us){
         lp = pi->voronoi.edges[6*qp+qs];
         if(lp < 0){
-            error("negative edge!");
+            pi->voronoi.nvert = 0;
+            return;
+/*            error("negative edge!");*/
         }
         lw = test_vertex(&pi->voronoi.vertices[3*lp], dx, r2, &l);
         if(lw == 0){
@@ -428,7 +430,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             q = l;
             dstack_size++;
             if(dstack_size == 1001){
-                error("delete stack too small");
+                pi->voronoi.nvert = 0;
+                return;
+/*                error("delete stack too small");*/
             }
             dstack[dstack_size-1] = qp;
         } else {
@@ -440,7 +444,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             vindex = pi->voronoi.nvert;
             pi->voronoi.nvert++;
             if(vindex == 100){
-                error("too many vertices");
+                pi->voronoi.nvert = 0;
+                return;
+/*                error("too many vertices");*/
             }
             pi->voronoi.vertices[3*vindex+0] = pi->voronoi.vertices[3*lp+0]*r +
                                                pi->voronoi.vertices[3*qp+0]*l;
@@ -816,6 +822,63 @@ __attribute__((always_inline)) INLINE static int voronoi_get_face_index(
     }
     return -1;
 
+}
+
+/**
+ * @brief Calculate the velocity of the face between pi and pj
+ */
+
+__attribute__((always_inline)) INLINE static void voronoi_get_face_velocity(
+    struct part *pi, struct part *pj, float *midface, float *vface){
+
+    vface[0] = 0.5f * (pi->primitives.v[0] + pj->primitives.v[0]);
+    vface[1] = 0.5f * (pi->primitives.v[1] + pj->primitives.v[1]);
+    vface[2] = 0.5f * (pi->primitives.v[2] + pj->primitives.v[2]);
+
+    float dx[3];
+    float xd[3];
+    dx[0] = pj->x[0] - pi->x[0];
+    xd[0] = 0.5f*(pi->x[0] + pj->x[0]);
+    if(dx[0] < -0.5f){
+        dx[0] += 1.0f;
+        xd[0] += 0.5f;
+    }
+    if(dx[0] > 0.5f){
+        dx[0] -= 1.0f;
+        xd[0] -= 0.5f;
+    }
+    dx[1] = pj->x[1] - pi->x[1];
+    xd[1] = 0.5f*(pi->x[1] + pj->x[1]);
+    if(dx[1] < -0.5f){
+        dx[1] += 1.0f;
+        xd[1] += 0.5f;
+    }
+    if(dx[1] > 0.5f){
+        dx[1] -= 1.0f;
+        xd[1] -= 0.5f;
+    }
+    dx[2] = pj->x[2] - pi->x[2];
+    xd[2] = 0.5f*(pi->x[2] + pj->x[2]);
+    if(dx[2] < -0.5f){
+        dx[2] += 1.0f;
+        xd[2] += 0.5f;
+    }
+    if(dx[2] > 0.5f){
+        dx[2] -= 1.0f;
+        xd[2] -= 0.5f;
+    }
+    float r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
+
+    float vproj = (pi->primitives.v[0] - pj->primitives.v[0]) * (midface[0] - xd[0])
+                    + (pi->primitives.v[1] - pj->primitives.v[1]) * (midface[1] - xd[1])
+                    + (pi->primitives.v[2] - pj->primitives.v[2]) * (midface[2] - xd[2]);
+
+    vface[0] += vproj * dx[0] / r2;
+    vface[1] += vproj * dx[1] / r2;
+    vface[2] += vproj * dx[2] / r2;
+/*    vface[0] = 0.0f;*/
+/*    vface[1] = 0.0f;*/
+/*    vface[2] = 0.0f;*/
 }
 
 #endif /* SWIFT_VORONOI_H */

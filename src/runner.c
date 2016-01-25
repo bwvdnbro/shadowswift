@@ -553,15 +553,20 @@ void runner_doghost(struct runner *r, struct cell *c) {
         wcount_dh =
             p->density.wcount_dh * ih * (4.0f / 3.0 * M_PI * kernel_gamma3);
         
-        maxsize = 0.0f;
-        for(k = 0; k < p->voronoi.nvert; k++){
-            r2 = 0.0f;
-            for(j = 0; j < 3; j++){
-                r2 += p->voronoi.vertices[3*k+j] * p->voronoi.vertices[3*k+j];
+        if(p->voronoi.nvert){
+            maxsize = 0.0f;
+            for(k = 0; k < p->voronoi.nvert; k++){
+                r2 = 0.0f;
+                for(j = 0; j < 3; j++){
+                    r2 += p->voronoi.vertices[3*k+j] * p->voronoi.vertices[3*k+j];
+                }
+                maxsize = fmaxf(r2, maxsize);
             }
-            maxsize = fmaxf(r2, maxsize);
+            maxsize = sqrtf(maxsize);
+        } else {
+            /* force recalculation */
+            maxsize = p->h;
         }
-        maxsize = sqrtf(maxsize);
 
         /* If no derivative, double the smoothing length. */
         if (wcount_dh == 0.0f) h_corr = p->h;
@@ -933,17 +938,20 @@ void runner_dokick1(struct runner *r, struct cell *c) {
 /*      p->x[0] = x[0] += dt * xp->v_hdt[0];*/
 /*      p->x[1] = x[1] += dt * xp->v_hdt[1];*/
 /*      p->x[2] = x[2] += dt * xp->v_hdt[2];*/
+      p->x[0] = x[0] += dt * p->primitives.v[0];
+      p->x[1] = x[1] += dt * p->primitives.v[1];
+      p->x[2] = x[2] += dt * p->primitives.v[2];
       dx = sqrtf((x[0] - x_old[0]) * (x[0] - x_old[0]) +
                  (x[1] - x_old[1]) * (x[1] - x_old[1]) +
                  (x[2] - x_old[2]) * (x[2] - x_old[2]));
       dx_max = fmaxf(dx_max, dx);
 
       /* Update conserved variables */
-      p->conserved.m += dt * p->conserved.dm;
-      p->conserved.p[0] += dt * p->conserved.dp[0];
-      p->conserved.p[1] += dt * p->conserved.dp[1];
-      p->conserved.p[2] += dt * p->conserved.dp[2];
-      p->conserved.e += dt * p->conserved.de;
+      p->conserved.m -= dt * p->conserved.dm;
+      p->conserved.p[0] -= dt * p->conserved.dp[0];
+      p->conserved.p[1] -= dt * p->conserved.dp[1];
+      p->conserved.p[2] -= dt * p->conserved.dp[2];
+      p->conserved.e -= dt * p->conserved.de;
 
       /* Reset flux variables */
       p->conserved.dm = 0.0f;
