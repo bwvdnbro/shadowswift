@@ -203,49 +203,36 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
  * @brief Intersect particle pi with particle pj and adapt its Voronoi cell
  *  structure
  *
- * dx = x_i - x_j!!!
+ * odx = x_i - x_j!!!
  */
 
 __attribute__((always_inline)) INLINE static void voronoi_intersect(
-    float or2, float *odx, struct part *pi, struct part *pj) {
+    float *odx, struct part *pi, struct part *pj) {
 
     float r2;
     float dx[3];
-    dx[0] = (pj->x[0] - pi->x[0]);
-    dx[1] = (pj->x[1] - pi->x[1]);
-    dx[2] = (pj->x[2] - pi->x[2]);
     
-    if(dx[0] > 0.5){
-        dx[0] -= 1.;
-    }
-    if(dx[0] < -0.5){
-        dx[0] += 1.;
-    }
-    if(dx[1] > 0.5){
-        dx[1] -= 1.;
-    }
-    if(dx[1] < -0.5){
-        dx[1] += 1.;
-    }
-    if(dx[2] > 0.5){
-        dx[2] -= 1.;
-    }
-    if(dx[2] < -0.5){
-        dx[2] += 1.;
-    }
+    float u, l, q;
+    int uw, up, us, lw, lp, ls, qw, qp, qs, cs, cp, rp;
     
-    dx[0] *= 0.5f;
-    dx[1] *= 0.5f;
-    dx[2] *= 0.5f;
+    /* delete stack for vertices that should be removed */
+    int dstack[1000];
+    int dstack_size = 1;
+    
+    float r;
+    int vindex;
+    
+    int i, j, k;
+    int newnvert;
+    
+    dx[0] = -0.5f*odx[0];
+    dx[1] = -0.5f*odx[1];
+    dx[2] = -0.5f*odx[2];
     
     r2 = dx[0]*dx[0] + dx[1]*dx[1] + dx[2]*dx[2];
 
-    float u;
-    int uw = test_vertex(&pi->voronoi.vertices[0], dx, r2, &u);
-    
-    int up = 0;
-    int lp, ls, lw, us, qp, qw, qs;
-    float l, q;
+    uw = test_vertex(&pi->voronoi.vertices[0], dx, r2, &u);
+    up = 0;
     if(uw == 1){
         /* the first vertex lies outside the plane: u is positive
            we try to find a connected vertex that is closer to the plane */
@@ -261,7 +248,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
            again */
         us--;
         if(l >= u){
-            error("impossible case 1");
+            /* emergency exit */
+            pi->voronoi.nvert = 0;
+            return;
         }
         /* ok, we found a closer vertex
            get the edge of this vertex that corresponds to our initial vertex
@@ -287,7 +276,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
                     us++;
                 }
                 if(l >= u){
-                    error("impossible case 2");
+                    /* emergency exit */
+                    pi->voronoi.nvert = 0;
+                    return;
                 }
             }
             us--;
@@ -295,7 +286,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             /* we found a closer vertex
                if it lies on the other side of the plane, we have found our
                intersected edge. If not, use this vertex as a new reference
-              point and try again. */
+               point and try again. */
             ls = pi->voronoi.edges[6*up+3+us];
         }
     } else {
@@ -359,18 +350,20 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
        and distance to the plane for the point below the plane
        up, us and u correspond to the same values for the point above the plane */
     
-    /* create a delete stack for vertices that should be removed */
-    int dstack[1000];
-    int dstack_size = 1;
-    
-    float r = u/(u-l);
+    /* note: this division could go wrong... */
+    if(u-l == 0.0f){
+        error("Division by zero!");
+    }
+    r = u/(u-l);
     l = 1. - r;
     /* add new vertex */
-    int vindex = pi->voronoi.nvert;
+    vindex = pi->voronoi.nvert;
     pi->voronoi.nvert++;
     
     if(vindex == 100){
-        error("too many vertices!");
+        /* too many vertices, emergency exit */
+        pi->voronoi.nvert = 0;
+        return;
     }
     
     pi->voronoi.vertices[3*vindex+0] = pi->voronoi.vertices[3*lp+0]*r + pi->voronoi.vertices[3*up+0]*l;
@@ -397,9 +390,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     qp = up;
     q = u;
     
-    int cs = 2;
-    int cp = vindex;
-    int rp = vindex;
+    cs = 2;
+    cp = vindex;
+    rp = vindex;
     /* cp corresponds to the last added vertex
        rp corresponds to the first added vertex */
     vindex++;
@@ -411,13 +404,15 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     while(qp != up || qs != us){
         lp = pi->voronoi.edges[6*qp+qs];
         if(lp < 0){
+            /* emergency exit */
             pi->voronoi.nvert = 0;
             return;
-/*            error("negative edge!");*/
         }
         lw = test_vertex(&pi->voronoi.vertices[3*lp], dx, r2, &l);
         if(lw == 0){
-            error("case not covered 3");
+            /* emergency exit */
+            pi->voronoi.nvert = 0;
+            return;
         }
         if(lw == 1){
             /* delete lp, it is still above the plane
@@ -430,23 +425,26 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             q = l;
             dstack_size++;
             if(dstack_size == 1001){
+                /* delete stack too small, emergency exit */
                 pi->voronoi.nvert = 0;
                 return;
-/*                error("delete stack too small");*/
             }
             dstack[dstack_size-1] = qp;
         } else {
             /* since the previous vertex was above the plane, we have found an
                intersecting edge
                add a new vertex */
+            if(q-l == 0.0f){
+                error("Division by zero!");
+            }
             r = q/(q-l);
             l = 1. - r;
             vindex = pi->voronoi.nvert;
             pi->voronoi.nvert++;
             if(vindex == 100){
+                /* too many vertices, emergency exit */
                 pi->voronoi.nvert = 0;
                 return;
-/*                error("too many vertices");*/
             }
             pi->voronoi.vertices[3*vindex+0] = pi->voronoi.vertices[3*lp+0]*r +
                                                pi->voronoi.vertices[3*qp+0]*l;
@@ -491,12 +489,14 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
         deleted too, and this way, we make sure they are deleted as well
         this is also the reason why we reset the edges here, since otherwise
         we might get stuck in an endless loop */
-    for(int i = 0; i < dstack_size; i++){
-        for(int j = 0; j < 3; j++){
+    for(i = 0; i < dstack_size; i++){
+        for(j = 0; j < 3; j++){
             if(pi->voronoi.edges[6*dstack[i]+j] >= 0){
                 dstack_size++;
                 if(dstack_size == 1001){
-                    error("delete stack too small");
+                    /* delete stack too small, emergency exit */
+                    pi->voronoi.nvert = 0;
+                    return;
                 }
                 dstack[dstack_size-1] = pi->voronoi.edges[6*dstack[i]+j];
                 pi->voronoi.edges[6*dstack[i]+j] = -1;
@@ -506,9 +506,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     }
     
     /* check edge consistency */
-    for(int i = 0; i < pi->voronoi.nvert; i++){
-        for(int j = 0; j < 3; j++){
-            int k = pi->voronoi.edges[6*i+j];
+    for(i = 0; i < pi->voronoi.nvert; i++){
+        for(j = 0; j < 3; j++){
+            k = pi->voronoi.edges[6*i+j];
             if(k >= 0 && pi->voronoi.edges[6*k] < 0){
                 error("edge inconsistency!");
             }
@@ -519,11 +519,11 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
        corresponding vertex by moving the next vertex (if it exists) to the
        current position. Also move its edges and change the value at the
        other endpoint of its edges */
-    int newnvert = pi->voronoi.nvert;
-    for(int i = 0; i < pi->voronoi.nvert; i++){
+    newnvert = pi->voronoi.nvert;
+    for(i = 0; i < pi->voronoi.nvert; i++){
         if(pi->voronoi.edges[6*i] < 0){
             /* find the next valid vertex */
-            int j = i+1;
+            j = i+1;
             while(j < pi->voronoi.nvert && pi->voronoi.edges[6*j] < 0){
                 j++;
             }
@@ -598,6 +598,12 @@ __attribute__((always_inline)) INLINE static void calculate_centroid_tetrahedron
 
 __attribute__((always_inline)) INLINE static void calculate_cell(
     struct part *p){
+
+    float v1[3], v2[3], v3[3], v4[3];
+    int i, j, k, l, m, n;
+    float tcentroid[3];
+    float tvol;
+
     /* we need to calculate the volume of the tetrahedra formed by the first
        vertex and the triangles that make up the other faces
        since we do not store faces explicitly, this means keeping track of the
@@ -607,7 +613,6 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
        this also means that we need to process all triangles corresponding to
        an edge at once */
     p->voronoi.volume = 0.0f;
-    float v1[3], v2[3], v3[3], v4[3];
     v1[0] = p->voronoi.vertices[0];
     v1[1] = p->voronoi.vertices[1];
     v1[2] = p->voronoi.vertices[2];
@@ -616,14 +621,14 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
     p->voronoi.centroid[2] = 0.0f;
     
     /* loop over all vertices (except the first one) */
-    for(int i = 1; i < p->voronoi.nvert; i++){
+    for(i = 1; i < p->voronoi.nvert; i++){
         v2[0] = p->voronoi.vertices[3*i];
         v2[1] = p->voronoi.vertices[3*i+1];
         v2[2] = p->voronoi.vertices[3*i+2];
         
         /*  loop over the edges of the vertex*/
-        for(int j = 0; j < 3; j++){
-            int k = p->voronoi.edges[6*i+j];
+        for(j = 0; j < 3; j++){
+            k = p->voronoi.edges[6*i+j];
             /* check if the edge has already been processed */
             if(k >= 0){
                 /* mark the edge as processed */
@@ -631,7 +636,7 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
                 
                 /* do some magic
                    code below brainlessly copied from voro++ */
-                int l = p->voronoi.edges[6*i+3+j];
+                l = p->voronoi.edges[6*i+3+j];
                 if(l == 2){
                     l = 0;
                 } else {
@@ -640,10 +645,10 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
                 v3[0] = p->voronoi.vertices[3*k];
                 v3[1] = p->voronoi.vertices[3*k+1];
                 v3[2] = p->voronoi.vertices[3*k+2];
-                int m = p->voronoi.edges[6*k+l];
+                m = p->voronoi.edges[6*k+l];
                 p->voronoi.edges[6*k+l] = -1-m;
-                while(m != (int)i){
-                    int n = p->voronoi.edges[6*k+3+l];
+                while(m != i){
+                    n = p->voronoi.edges[6*k+3+l];
                     if(n == 2){
                         n = 0;
                     } else {
@@ -652,9 +657,8 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
                     v4[0] = p->voronoi.vertices[3*m];
                     v4[1] = p->voronoi.vertices[3*m+1];
                     v4[2] = p->voronoi.vertices[3*m+2];
-                    float tvol = calculate_volume_tetrahedron(v1, v2, v3, v4);
+                    tvol = calculate_volume_tetrahedron(v1, v2, v3, v4);
                     p->voronoi.volume += tvol;
-                    float tcentroid[3];
                     calculate_centroid_tetrahedron(tcentroid, v1, v2, v3, v4);
                     p->voronoi.centroid[0] += tcentroid[0]*tvol;
                     p->voronoi.centroid[1] += tcentroid[1]*tvol;
@@ -681,8 +685,8 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
     p->voronoi.centroid[2] += p->x[2];
     
     // unmark edges
-    for(int i = 0; i < p->voronoi.nvert; i++){
-        for(int j = 0; j < 3; j++){
+    for(i = 0; i < p->voronoi.nvert; i++){
+        for(j = 0; j < 3; j++){
             if(p->voronoi.edges[6*i+j] < 0){
                 p->voronoi.edges[6*i+j] = -p->voronoi.edges[6*i+j]-1;
             } else {
@@ -697,30 +701,34 @@ __attribute__((always_inline)) INLINE static void calculate_faces(
     struct part *p){
 
     unsigned long long newngbs[300];
+    int i, j, k, l, m, n;
+    float area;
+    float midpoint[3];
+    float u[3], v[3], w[3];
+    float loc_area;
+
     p->voronoi.nface = 0;
-    for(int i = 0; i < p->voronoi.nvert; i++){
-        for(int j = 0; j < 3; j++){
-            int k = p->voronoi.edges[6*i+j];
+    for(i = 0; i < p->voronoi.nvert; i++){
+        for(j = 0; j < 3; j++){
+            k = p->voronoi.edges[6*i+j];
             if(k >= 0){
                 newngbs[p->voronoi.nface] = p->voronoi.ngbs[3*i+j];
-                float area = 0.;
-                float midpoint[3];
+                area = 0.;
                 midpoint[0] = 0.;
                 midpoint[1] = 0.;
                 midpoint[2] = 0.;
                 p->voronoi.edges[6*i+j] = -1 - k;
-                int l = p->voronoi.edges[6*i+3+j] + 1;
+                l = p->voronoi.edges[6*i+3+j] + 1;
                 if(l == 3){
                     l = 0;
                 }
-                int m = p->voronoi.edges[6*k+l];
+                m = p->voronoi.edges[6*k+l];
                 p->voronoi.edges[6*k+l] = -1 - m;
                 while(m != i){
-                    int n = p->voronoi.edges[6*k+3+l] + 1;
+                    n = p->voronoi.edges[6*k+3+l] + 1;
                     if(n == 3){
                         n = 0;
                     }
-                    float u[3], v[3], w[3];
                     u[0] = p->voronoi.vertices[3*k+0] - p->voronoi.vertices[3*i+0];
                     u[1] = p->voronoi.vertices[3*k+1] - p->voronoi.vertices[3*i+1];
                     u[2] = p->voronoi.vertices[3*k+2] - p->voronoi.vertices[3*i+2];
@@ -730,7 +738,7 @@ __attribute__((always_inline)) INLINE static void calculate_faces(
                     w[0] = u[1]*v[2] - u[2]*v[1];
                     w[1] = u[2]*v[0] - u[0]*v[2];
                     w[2] = u[0]*v[1] - u[1]*v[0];
-                    float loc_area = sqrtf(w[0]*w[0] + w[1]*w[1] + w[2]*w[2]);
+                    loc_area = sqrtf(w[0]*w[0] + w[1]*w[1] + w[2]*w[2]);
                     area += loc_area;
                     midpoint[0] += loc_area*(p->voronoi.vertices[3*k+0] +
                                              p->voronoi.vertices[3*i+0] +
@@ -760,13 +768,13 @@ __attribute__((always_inline)) INLINE static void calculate_faces(
     }
 
     /* update ngbs */
-    for(int i = 0; i < 300; i++){
+    for(i = 0; i < 300; i++){
         p->voronoi.ngbs[i] = newngbs[i];
     }
 
     /* unmark edges */
-    for(int i = 0; i < p->voronoi.nvert; i++){
-        for(int j = 0; j < 3; j++){
+    for(i = 0; i < p->voronoi.nvert; i++){
+        for(j = 0; j < 3; j++){
             if(p->voronoi.edges[6*i+j] < 0){
                 p->voronoi.edges[6*i+j] = -p->voronoi.edges[6*i+j]-1;
             } else {
@@ -786,6 +794,7 @@ __attribute__((always_inline)) INLINE static void calculate_faces(
 __attribute__((always_inline)) INLINE static int voronoi_get_face_index(
     struct part *pi, struct part *pj){
 
+    /* alternative (less precise) neighbour finding */
 /*    float ri2, rj2;*/
 /*    for(int i = 0; i < pi->voronoi.nface; i++){*/
 /*        ri2 = 0.0f;*/
@@ -815,11 +824,15 @@ __attribute__((always_inline)) INLINE static int voronoi_get_face_index(
 /*        }*/
 /*    }*/
 /*    return -1;*/
-    for(int i = 0; i < pi->voronoi.nface; i++){
+
+    /* explicit neighbour tracking */
+    int i;
+    for(i = 0; i < pi->voronoi.nface; i++){
         if(pi->voronoi.ngbs[i] == pj->id){
             return i;
         }
     }
+    /* particles are not cell neighbours */
     return -1;
 
 }
@@ -829,56 +842,30 @@ __attribute__((always_inline)) INLINE static int voronoi_get_face_index(
  */
 
 __attribute__((always_inline)) INLINE static void voronoi_get_face_velocity(
-    struct part *pi, struct part *pj, float *midface, float *vface){
+    float r2, float *dx, struct part *pi, struct part *pj, float *midface, float *vface){
+
+    float xd[3];
+    float vproj;
 
     vface[0] = 0.5f * (pi->primitives.v[0] + pj->primitives.v[0]);
     vface[1] = 0.5f * (pi->primitives.v[1] + pj->primitives.v[1]);
     vface[2] = 0.5f * (pi->primitives.v[2] + pj->primitives.v[2]);
 
-    float dx[3];
-    float xd[3];
-    dx[0] = pj->x[0] - pi->x[0];
-    xd[0] = 0.5f*(pi->x[0] + pj->x[0]);
-    if(dx[0] < -0.5f){
-        dx[0] += 1.0f;
-        xd[0] += 0.5f;
-    }
-    if(dx[0] > 0.5f){
-        dx[0] -= 1.0f;
-        xd[0] -= 0.5f;
-    }
-    dx[1] = pj->x[1] - pi->x[1];
-    xd[1] = 0.5f*(pi->x[1] + pj->x[1]);
-    if(dx[1] < -0.5f){
-        dx[1] += 1.0f;
-        xd[1] += 0.5f;
-    }
-    if(dx[1] > 0.5f){
-        dx[1] -= 1.0f;
-        xd[1] -= 0.5f;
-    }
-    dx[2] = pj->x[2] - pi->x[2];
-    xd[2] = 0.5f*(pi->x[2] + pj->x[2]);
-    if(dx[2] < -0.5f){
-        dx[2] += 1.0f;
-        xd[2] += 0.5f;
-    }
-    if(dx[2] > 0.5f){
-        dx[2] -= 1.0f;
-        xd[2] -= 0.5f;
-    }
-    float r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
+    /* we cannot simply calculate xd as 0.5*(xi+xj), since this does not take
+       the periodic corrections into account */
+    xd[0] = pi->x[0] - 0.5f*dx[0];
+    xd[1] = pi->x[1] - 0.5f*dx[1];
+    xd[2] = pi->x[2] - 0.5f*dx[2];
 
-    float vproj = (pi->primitives.v[0] - pj->primitives.v[0]) * (midface[0] - xd[0])
-                    + (pi->primitives.v[1] - pj->primitives.v[1]) * (midface[1] - xd[1])
-                    + (pi->primitives.v[2] - pj->primitives.v[2]) * (midface[2] - xd[2]);
+    vproj = (pi->primitives.v[0] - pj->primitives.v[0]) * (midface[0] - xd[0])
+              + (pi->primitives.v[1] - pj->primitives.v[1]) * (midface[1] - xd[1])
+              + (pi->primitives.v[2] - pj->primitives.v[2]) * (midface[2] - xd[2]);
 
-    vface[0] += vproj * dx[0] / r2;
-    vface[1] += vproj * dx[1] / r2;
-    vface[2] += vproj * dx[2] / r2;
-/*    vface[0] = 0.0f;*/
-/*    vface[1] = 0.0f;*/
-/*    vface[2] = 0.0f;*/
+    /* minus sign due to the reverse definition of dx w.r.t. Springel 2010 */
+    vface[0] -= vproj * dx[0] / r2;
+    vface[1] -= vproj * dx[1] / r2;
+    vface[2] -= vproj * dx[2] / r2;
+
 }
 
 #endif /* SWIFT_VORONOI_H */
