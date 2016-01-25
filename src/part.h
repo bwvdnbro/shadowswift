@@ -183,6 +183,9 @@ struct part {
     /* Centroid of the cell */
     float centroid[3];
 
+    /* Cell neighbours */
+    unsigned long long ngbs[300];
+
     /* Number of faces */
     int nface;
 

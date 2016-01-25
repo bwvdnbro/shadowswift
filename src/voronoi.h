@@ -22,6 +22,14 @@
 /* Includes. */
 #include "part.h"
 
+/* Box boundary flags used to signal cells neighbouring the box boundary */
+#define BOX_FRONT   0xfffffff0
+#define BOX_BACK    0xfffffff1
+#define BOX_TOP     0xfffffff2
+#define BOX_BOTTOM  0xfffffff3
+#define BOX_LEFT    0xfffffff4
+#define BOX_RIGHT   0xfffffff5
+
 /**
  * @brief Check if the given vertex is above or below the cutting plane
  */
@@ -50,65 +58,65 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
 
     p->voronoi.nvert = 8;
 
-    // (0, 0, 0) -- 0
-    p->voronoi.vertices[0] = -h;
-    p->voronoi.vertices[1] = -h;
-    p->voronoi.vertices[2] = -h;
+    /* (0, 0, 0) -- 0 */
+    p->voronoi.vertices[ 0] = -h;
+    p->voronoi.vertices[ 1] = -h;
+    p->voronoi.vertices[ 2] = -h;
 
-    // (0, 0, 1)-- 1
-    p->voronoi.vertices[3] = -h;
-    p->voronoi.vertices[4] = -h;
-    p->voronoi.vertices[5] = h;
+    /* (0, 0, 1)-- 1 */
+    p->voronoi.vertices[ 3] = -h;
+    p->voronoi.vertices[ 4] = -h;
+    p->voronoi.vertices[ 5] =  h;
 
-    // (0, 1, 0) -- 2
-    p->voronoi.vertices[6] = -h;
-    p->voronoi.vertices[7] = h;
-    p->voronoi.vertices[8] = -h;
+    /* (0, 1, 0) -- 2*/
+    p->voronoi.vertices[ 6] = -h;
+    p->voronoi.vertices[ 7] =  h;
+    p->voronoi.vertices[ 8] = -h;
 
-    // (0, 1, 1) -- 3
-    p->voronoi.vertices[9] = -h;
-    p->voronoi.vertices[10] = h;
-    p->voronoi.vertices[11] = h;
+    /* (0, 1, 1) -- 3 */
+    p->voronoi.vertices[ 9] = -h;
+    p->voronoi.vertices[10] =  h;
+    p->voronoi.vertices[11] =  h;
 
-    // (1, 0, 0) -- 4
-    p->voronoi.vertices[12] = h;
+    /* (1, 0, 0) -- 4 */
+    p->voronoi.vertices[12] =  h;
     p->voronoi.vertices[13] = -h;
     p->voronoi.vertices[14] = -h;
 
-    // (1, 0, 1) -- 5
-    p->voronoi.vertices[15] = h;
+    /* (1, 0, 1) -- 5 */
+    p->voronoi.vertices[15] =  h;
     p->voronoi.vertices[16] = -h;
-    p->voronoi.vertices[17] = h;
+    p->voronoi.vertices[17] =  h;
 
-    // (1, 1, 0) -- 6
-    p->voronoi.vertices[18] = h;
-    p->voronoi.vertices[19] = h;
+    /* (1, 1, 0) -- 6 */
+    p->voronoi.vertices[18] =  h;
+    p->voronoi.vertices[19] =  h;
     p->voronoi.vertices[20] = -h;
 
-    // (1, 1, 1) -- 7
-    p->voronoi.vertices[21] = h;
-    p->voronoi.vertices[22] = h;
-    p->voronoi.vertices[23] = h;
+    /* (1, 1, 1) -- 7 */
+    p->voronoi.vertices[21] =  h;
+    p->voronoi.vertices[22] =  h;
+    p->voronoi.vertices[23] =  h;
 
-    // edges are ordered counterclockwise w.r.t. a vector pointing from the
-    // cell generator to the vertex
-    // (0, 0, 0) corner
-    p->voronoi.edges[0] = 1;
-    p->voronoi.edges[1] = 2;
-    p->voronoi.edges[2] = 4;
-    p->voronoi.edges[3] = 0;
-    p->voronoi.edges[4] = 2;
-    p->voronoi.edges[5] = 0;
+    /* edges are ordered counterclockwise w.r.t. a vector pointing from the
+       cell generator to the vertex */
+    /* (0, 0, 0) corner */
+    p->voronoi.edges[ 0] = 1;
+    p->voronoi.edges[ 1] = 2;
+    p->voronoi.edges[ 2] = 4;
+    p->voronoi.edges[ 3] = 0;
+    p->voronoi.edges[ 4] = 2;
+    p->voronoi.edges[ 5] = 0;
 
-    // (0, 0, 1) corner
-    p->voronoi.edges[6] = 0;
-    p->voronoi.edges[7] = 5;
-    p->voronoi.edges[8] = 3;
-    p->voronoi.edges[9] = 0;
+    /* (0, 0, 1) corner */
+    p->voronoi.edges[ 6] = 0;
+    p->voronoi.edges[ 7] = 5;
+    p->voronoi.edges[ 8] = 3;
+    p->voronoi.edges[ 9] = 0;
     p->voronoi.edges[10] = 2;
     p->voronoi.edges[11] = 1;
 
-    // (0, 1, 0) corner
+    /* (0, 1, 0) corner */
     p->voronoi.edges[12] = 3;
     p->voronoi.edges[13] = 6;
     p->voronoi.edges[14] = 0;
@@ -116,7 +124,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[16] = 0;
     p->voronoi.edges[17] = 1;
 
-    // (0, 1, 1) corner
+    /* (0, 1, 1) corner */
     p->voronoi.edges[18] = 2;
     p->voronoi.edges[19] = 1;
     p->voronoi.edges[20] = 7;
@@ -124,7 +132,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[22] = 2;
     p->voronoi.edges[23] = 0;
 
-    // (1, 0, 0) corner
+    /* (1, 0, 0) corner */
     p->voronoi.edges[24] = 0;
     p->voronoi.edges[25] = 6;
     p->voronoi.edges[26] = 5;
@@ -132,7 +140,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[28] = 2;
     p->voronoi.edges[29] = 0;
 
-    // (1, 0, 1) corner
+    /* (1, 0, 1) corner */
     p->voronoi.edges[30] = 4;
     p->voronoi.edges[31] = 7;
     p->voronoi.edges[32] = 1;
@@ -140,7 +148,7 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[34] = 1;
     p->voronoi.edges[35] = 1;
 
-    // (1, 1, 0) corner
+    /* (1, 1, 0) corner */
     p->voronoi.edges[36] = 2;
     p->voronoi.edges[37] = 7;
     p->voronoi.edges[38] = 4;
@@ -148,13 +156,47 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
     p->voronoi.edges[40] = 2;
     p->voronoi.edges[41] = 1;
 
-    // (1, 1, 1) corner
+    /* (1, 1, 1) corner */
     p->voronoi.edges[42] = 3;
     p->voronoi.edges[43] = 5;
     p->voronoi.edges[44] = 6;
     p->voronoi.edges[45] = 2;
     p->voronoi.edges[46] = 1;
     p->voronoi.edges[47] = 1;
+
+    /* ngbs[3*i+j] is the neighbour corresponding to the plane clockwise of
+       edge j of vertex i */
+    p->voronoi.ngbs[ 0] = BOX_LEFT;     /* (000) - (001) */
+    p->voronoi.ngbs[ 1] = BOX_BOTTOM;   /* (000) - (010) */
+    p->voronoi.ngbs[ 2] = BOX_FRONT;    /* (000) - (100) */
+
+    p->voronoi.ngbs[ 3] = BOX_FRONT;    /* (001) - (000) */
+    p->voronoi.ngbs[ 4] = BOX_TOP;      /* (001) - (101) */
+    p->voronoi.ngbs[ 5] = BOX_LEFT;     /* (001) - (011) */
+
+    p->voronoi.ngbs[ 6] = BOX_BACK;     /* (010) - (011) */
+    p->voronoi.ngbs[ 7] = BOX_BOTTOM;   /* (010) - (110) */
+    p->voronoi.ngbs[ 8] = BOX_LEFT;     /* (010) - (000) */
+
+    p->voronoi.ngbs[ 9] = BOX_LEFT;     /* (011) - (010) */
+    p->voronoi.ngbs[10] = BOX_TOP;      /* (011) - (001) */
+    p->voronoi.ngbs[11] = BOX_BACK;     /* (011) - (111) */
+
+    p->voronoi.ngbs[12] = BOX_BOTTOM;   /* (100) - (000) */
+    p->voronoi.ngbs[13] = BOX_RIGHT;    /* (100) - (110) */
+    p->voronoi.ngbs[14] = BOX_FRONT;    /* (100) - (101) */
+
+    p->voronoi.ngbs[15] = BOX_RIGHT;    /* (101) - (100) */
+    p->voronoi.ngbs[16] = BOX_TOP;      /* (101) - (111) */
+    p->voronoi.ngbs[17] = BOX_FRONT;    /* (101) - (001) */
+
+    p->voronoi.ngbs[18] = BOX_BACK;     /* (110) - (010) */
+    p->voronoi.ngbs[19] = BOX_RIGHT;    /* (110) - (111) */
+    p->voronoi.ngbs[20] = BOX_BOTTOM;   /* (110) - (100) */
+
+    p->voronoi.ngbs[21] = BOX_TOP;      /* (111) - (011) */
+    p->voronoi.ngbs[22] = BOX_RIGHT;    /* (111) - (101) */
+    p->voronoi.ngbs[23] = BOX_BACK;     /* (111) - (110) */
 }
 
 /**
@@ -343,6 +385,10 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     /* 1 because we choose 1 above */
     pi->voronoi.edges[6*lp+3+ls] = 1;
     pi->voronoi.edges[6*up+us] = -1;
+    /* ngbs */
+    pi->voronoi.ngbs[3*vindex] = pj->id;
+    pi->voronoi.ngbs[3*vindex+1] = pi->voronoi.ngbs[3*up+us];
+    pi->voronoi.ngbs[3*vindex+2] = pi->voronoi.ngbs[3*lp+ls];
     
     qs = us+1;
     if(qs == 3){
@@ -413,6 +459,10 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             pi->voronoi.edges[6*cp+cs] = vindex;
             pi->voronoi.edges[6*cp+3+cs] = 0;
             pi->voronoi.edges[6*qp+qs] = -1;
+            /* ngbs */
+            pi->voronoi.ngbs[3*vindex] = pj->id;
+            pi->voronoi.ngbs[3*vindex+1] = pi->voronoi.ngbs[3*qp+qs];
+            pi->voronoi.ngbs[3*vindex+2] = pi->voronoi.ngbs[3*lp+ls];
             /* continue with the next edge of this vertex */
             qs = qs+1;
             if(qs == 3){
@@ -488,7 +538,12 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             pi->voronoi.edges[6*i+3] = pi->voronoi.edges[6*j+3];
             pi->voronoi.edges[6*i+4] = pi->voronoi.edges[6*j+4];
             pi->voronoi.edges[6*i+5] = pi->voronoi.edges[6*j+5];
-            
+
+            /* copy the ngbs */
+            pi->voronoi.ngbs[3*i+0] = pi->voronoi.ngbs[3*j+0];
+            pi->voronoi.ngbs[3*i+1] = pi->voronoi.ngbs[3*j+1];
+            pi->voronoi.ngbs[3*i+2] = pi->voronoi.ngbs[3*j+2];
+
             /* deactivate the old edges */
             pi->voronoi.edges[6*j] = -1;
             
@@ -635,11 +690,13 @@ __attribute__((always_inline)) INLINE static void calculate_cell(
 __attribute__((always_inline)) INLINE static void calculate_faces(
     struct part *p){
 
+    unsigned long long newngbs[300];
     p->voronoi.nface = 0;
     for(int i = 0; i < p->voronoi.nvert; i++){
         for(int j = 0; j < 3; j++){
             int k = p->voronoi.edges[6*i+j];
             if(k >= 0){
+                newngbs[p->voronoi.nface] = p->voronoi.ngbs[3*i+j];
                 float area = 0.;
                 float midpoint[3];
                 midpoint[0] = 0.;
@@ -695,7 +752,12 @@ __attribute__((always_inline)) INLINE static void calculate_faces(
             }
         }
     }
-    
+
+    /* update ngbs */
+    for(int i = 0; i < 300; i++){
+        p->voronoi.ngbs[i] = newngbs[i];
+    }
+
     /* unmark edges */
     for(int i = 0; i < p->voronoi.nvert; i++){
         for(int j = 0; j < 3; j++){
@@ -718,31 +780,37 @@ __attribute__((always_inline)) INLINE static void calculate_faces(
 __attribute__((always_inline)) INLINE static int voronoi_get_face_index(
     struct part *pi, struct part *pj){
 
-    float ri2, rj2;
+/*    float ri2, rj2;*/
+/*    for(int i = 0; i < pi->voronoi.nface; i++){*/
+/*        ri2 = 0.0f;*/
+/*        for(int j = 0; j < 3; j++){*/
+/*            float x = pi->voronoi.face_midpoints[3*i+j] - pi->x[j];*/
+/*            if(x < -0.5f){*/
+/*                x += 1.0f;*/
+/*            }*/
+/*            if(x > 0.5f){*/
+/*                x -= 1.0f;*/
+/*            }*/
+/*            ri2 += x * x;*/
+/*        }*/
+/*        rj2 = 0.0f;*/
+/*        for(int j = 0; j < 3; j++){*/
+/*            float x = pi->voronoi.face_midpoints[3*i+j] - pj->x[j];*/
+/*            if(x < -0.5f){*/
+/*                x += 1.0f;*/
+/*            }*/
+/*            if(x > 0.5f){*/
+/*                x -= 1.0f;*/
+/*            }*/
+/*            rj2 += x * x;*/
+/*        }*/
+/*        if(fabs(ri2-rj2) < 1.e-8){*/
+/*            return i;*/
+/*        }*/
+/*    }*/
+/*    return -1;*/
     for(int i = 0; i < pi->voronoi.nface; i++){
-        ri2 = 0.0f;
-        for(int j = 0; j < 3; j++){
-            float x = pi->voronoi.face_midpoints[3*i+j] - pi->x[j];
-            if(x < -0.5f){
-                x += 1.0f;
-            }
-            if(x > 0.5f){
-                x -= 1.0f;
-            }
-            ri2 += x * x;
-        }
-        rj2 = 0.0f;
-        for(int j = 0; j < 3; j++){
-            float x = pi->voronoi.face_midpoints[3*i+j] - pj->x[j];
-            if(x < -0.5f){
-                x += 1.0f;
-            }
-            if(x > 0.5f){
-                x -= 1.0f;
-            }
-            rj2 += x * x;
-        }
-        if(fabs(ri2-rj2) < 1.e-8){
+        if(pi->voronoi.ngbs[i] == pj->id){
             return i;
         }
     }
