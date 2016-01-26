@@ -565,6 +565,7 @@ void runner_doghost(struct runner *r, struct cell *c) {
             maxsize = sqrtf(maxsize);
         } else {
             /* force recalculation */
+            p->h *= 0.25f;
             maxsize = p->h;
         }
 

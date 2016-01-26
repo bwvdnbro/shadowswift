@@ -229,7 +229,8 @@ void read_ic_single(char* fileName, double dim[3], struct part** parts, int* N,
   readArray(h_grp, "Velocities", FLOAT, *N, 3, *parts, v, COMPULSORY);
   readArray(h_grp, "Masses", FLOAT, *N, 1, *parts, mass, OPTIONAL);
   readArray(h_grp, "SmoothingLength", FLOAT, *N, 1, *parts, h, COMPULSORY);
-  readArray(h_grp, "InternalEnergy", FLOAT, *N, 1, *parts, primitives.P, COMPULSORY);
+  readArray(h_grp, "InternalEnergy", FLOAT, *N, 1, *parts, primitives.P,
+            COMPULSORY);
   readArray(h_grp, "ParticleIDs", ULONGLONG, *N, 1, *parts, id, COMPULSORY);
   readArray(h_grp, "TimeStep", FLOAT, *N, 1, *parts, dt, OPTIONAL);
   readArray(h_grp, "Acceleration", FLOAT, *N, 3, *parts, a, OPTIONAL);

@@ -2,6 +2,7 @@
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
  *                    Matthieu Schaller (matthieu.schaller@durham.ac.uk).
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -270,16 +271,16 @@ void read_ic_parallel(char* fileName, double dim[3], struct part** parts,
             COMPULSORY);
   readArray(h_grp, "SmoothingLength", FLOAT, *N, 1, *parts, N_total, offset, h,
             COMPULSORY);
-  readArray(h_grp, "InternalEnergy", FLOAT, *N, 1, *parts, N_total, offset, u,
-            COMPULSORY);
+  readArray(h_grp, "InternalEnergy", FLOAT, *N, 1, *parts, N_total, offset,
+            primitives.P, COMPULSORY);
   readArray(h_grp, "ParticleIDs", ULONGLONG, *N, 1, *parts, N_total, offset, id,
             COMPULSORY);
   readArray(h_grp, "TimeStep", FLOAT, *N, 1, *parts, N_total, offset, dt,
             OPTIONAL);
   readArray(h_grp, "Acceleration", FLOAT, *N, 3, *parts, N_total, offset, a,
             OPTIONAL);
-  readArray(h_grp, "Density", FLOAT, *N, 1, *parts, N_total, offset, rho,
-            OPTIONAL);
+  readArray(h_grp, "Density", FLOAT, *N, 1, *parts, N_total, offset,
+            primitives.rho, OPTIONAL);
 
   /* Close particle group */
   H5Gclose(h_grp);
@@ -573,13 +574,13 @@ void write_output_parallel(struct engine* e, struct UnitSystem* us,
   writeArray(h_grp, fileName, xmfFile, "Coordinates", DOUBLE, N, 3, parts,
              N_total, mpi_rank, offset, x, us, UNIT_CONV_LENGTH);
   writeArray(h_grp, fileName, xmfFile, "Velocities", FLOAT, N, 3, parts,
-             N_total, mpi_rank, offset, v, us, UNIT_CONV_SPEED);
+             N_total, mpi_rank, offset, primitives.v, us, UNIT_CONV_SPEED);
   writeArray(h_grp, fileName, xmfFile, "Masses", FLOAT, N, 1, parts, N_total,
-             mpi_rank, offset, mass, us, UNIT_CONV_MASS);
+             mpi_rank, offset, conserved.m, us, UNIT_CONV_MASS);
   writeArray(h_grp, fileName, xmfFile, "SmoothingLength", FLOAT, N, 1, parts,
              N_total, mpi_rank, offset, h, us, UNIT_CONV_LENGTH);
   writeArray(h_grp, fileName, xmfFile, "InternalEnergy", FLOAT, N, 1, parts,
-             N_total, mpi_rank, offset, u, us, UNIT_CONV_ENERGY_PER_UNIT_MASS);
+             N_total, mpi_rank, offset, primitives.P, us, UNIT_CONV_ENERGY_PER_UNIT_MASS);
   writeArray(h_grp, fileName, xmfFile, "ParticleIDs", ULONGLONG, N, 1, parts,
              N_total, mpi_rank, offset, id, us, UNIT_CONV_NO_UNITS);
   writeArray(h_grp, fileName, xmfFile, "TimeStep", FLOAT, N, 1, parts, N_total,
@@ -587,7 +588,17 @@ void write_output_parallel(struct engine* e, struct UnitSystem* us,
   writeArray(h_grp, fileName, xmfFile, "Acceleration", FLOAT, N, 3, parts,
              N_total, mpi_rank, offset, a, us, UNIT_CONV_ACCELERATION);
   writeArray(h_grp, fileName, xmfFile, "Density", FLOAT, N, 1, parts, N_total,
-             mpi_rank, offset, rho, us, UNIT_CONV_DENSITY);
+             mpi_rank, offset, primitives.rho, us, UNIT_CONV_DENSITY);
+  writeArray(h_grp, fileName, xmfFile, "NumVert", INT, N, 1, parts, 
+             N_total, mpi_rank, offset, voronoi.nvert, us, UNIT_CONV_NO_UNITS);
+  writeArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N, 300, parts,
+             N_total, mpi_rank, offset, voronoi.vertices, us, UNIT_CONV_LENGTH);
+  writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 600, parts,
+             N_total, mpi_rank, offset, voronoi.edges, us, UNIT_CONV_NO_UNITS);
+  writeArray(h_grp, fileName, xmfFile, "Volume", FLOAT, N, 1, parts,
+             N_total, mpi_rank, offset, voronoi.volume, us, UNIT_CONV_VOLUME);
+  writeArray(h_grp, fileName, xmfFile, "Centroid", FLOAT, N, 3, parts,
+             N_total, mpi_rank, offset, voronoi.centroid, us, UNIT_CONV_LENGTH);
 
   /* Close particle group */
   H5Gclose(h_grp);

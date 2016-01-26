@@ -2,6 +2,7 @@
  * This file is part of SWIFT.
  * Copyright (c) 2012 Pedro Gonnet (pedro.gonnet@durham.ac.uk),
  *                    Matthieu Schaller (matthieu.schaller@durham.ac.uk).
+ *               2016 Bert Vandenbroucke (bert.vandenbroucke@gmail.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -312,15 +313,15 @@ void read_ic_serial(char* fileName, double dim[3], struct part** parts, int* N,
       readArray(h_grp, "SmoothingLength", FLOAT, *N, 1, *parts, N_total, offset,
                 h, COMPULSORY);
       readArray(h_grp, "InternalEnergy", FLOAT, *N, 1, *parts, N_total, offset,
-                u, COMPULSORY);
+                primitives.P, COMPULSORY);
       readArray(h_grp, "ParticleIDs", ULONGLONG, *N, 1, *parts, N_total, offset,
                 id, COMPULSORY);
       readArray(h_grp, "TimeStep", FLOAT, *N, 1, *parts, N_total, offset, dt,
                 OPTIONAL);
       readArray(h_grp, "Acceleration", FLOAT, *N, 3, *parts, N_total, offset, a,
                 OPTIONAL);
-      readArray(h_grp, "Density", FLOAT, *N, 1, *parts, N_total, offset, rho,
-                OPTIONAL);
+      readArray(h_grp, "Density", FLOAT, *N, 1, *parts, N_total, offset,
+                primitives.rho, OPTIONAL);
 
       /* Close particle group */
       H5Gclose(h_grp);
@@ -634,6 +635,16 @@ void write_output_serial(struct engine* e, struct UnitSystem* us, int mpi_rank,
                  us, UNIT_CONV_ACCELERATION);
     prepareArray(h_grp, fileName, xmfFile, "Density", FLOAT, N_total, 1, us,
                  UNIT_CONV_DENSITY);
+    prepareArray(h_grp, fileName, xmfFile, "NumVert", INT, N_total, 1, us,
+                 UNIT_CONV_NO_UNITS);
+    prepareArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N_total, 300, us,
+                 UNIT_CONV_LENGTH);
+    prepareArray(h_grp, fileName, xmfFile, "Edges", INT, N_total, 600, us,
+                 UNIT_CONV_NO_UNITS);
+    prepareArray(h_grp, fileName, xmfFile, "Volume", FLOAT, N_total, 1, us,
+                 UNIT_CONV_VOLUME);
+    prepareArray(h_grp, fileName, xmfFile, "Centroid", FLOAT, N_total, 3, us,
+                 UNIT_CONV_LENGTH);
 
     /* Close particle group */
     H5Gclose(h_grp);
@@ -663,17 +674,30 @@ void write_output_serial(struct engine* e, struct UnitSystem* us, int mpi_rank,
 
       /* Write arrays */
       writeArray(h_grp, "Coordinates", DOUBLE, N, 3, N_total, offset, parts, x);
-      writeArray(h_grp, "Velocities", FLOAT, N, 3, N_total, offset, parts, v);
-      writeArray(h_grp, "Masses", FLOAT, N, 1, N_total, offset, parts, mass);
+      writeArray(h_grp, "Velocities", FLOAT, N, 3, N_total, offset, parts,
+                 primitives.v);
+      writeArray(h_grp, "Masses", FLOAT, N, 1, N_total, offset, parts,
+                 conserved.m);
       writeArray(h_grp, "SmoothingLength", FLOAT, N, 1, N_total, offset, parts,
                  h);
       writeArray(h_grp, "InternalEnergy", FLOAT, N, 1, N_total, offset, parts,
-                 u);
+                 primitives.P);
       writeArray(h_grp, "ParticleIDs", ULONGLONG, N, 1, N_total, offset, parts,
                  id);
       writeArray(h_grp, "TimeStep", FLOAT, N, 1, N_total, offset, parts, dt);
       writeArray(h_grp, "Acceleration", FLOAT, N, 3, N_total, offset, parts, a);
-      writeArray(h_grp, "Density", FLOAT, N, 1, N_total, offset, parts, rho);
+      writeArray(h_grp, "Density", FLOAT, N, 1, N_total, offset, parts,
+                 primitives.rho);
+      writeArray(h_grp, "NumVert", INT, N, 1, N_total, offset, parts,
+                 voronoi.nvert);
+      writeArray(h_grp, "Vertices", FLOAT, N, 300, N_total, offset, parts,
+                 voronoi.vertices);
+      writeArray(h_grp, "Edges", INT, N, 600, N_total, offset, parts,
+                 voronoi.edges);
+      writeArray(h_grp, "Volume", FLOAT, N, 1, N_total, offset, parts,
+                 voronoi.volume);
+      writeArray(h_grp, "Centroid", FLOAT, N, 3, N_total, offset, parts,
+                 voronoi.centroid);
 
       /* Close particle group */
       H5Gclose(h_grp);

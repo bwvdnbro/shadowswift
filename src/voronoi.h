@@ -209,6 +209,15 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
 __attribute__((always_inline)) INLINE static void voronoi_intersect(
     float *odx, struct part *pi, struct part *pj) {
 
+    /* check if the cell is still valid */
+    /* it could happen that a previous interaction silently exited, leading to
+       a cell that has to be reinitialized in a next iteration and that is no
+       longer valid. Using the cell in a consecutive interaction will lead to
+       SEGFAULTs */
+    if(!pi->voronoi.nvert){
+        return;
+    }
+
     float r2;
     float dx[3];
     
@@ -484,7 +493,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     pi->voronoi.edges[6*rp+3] = cs;
     
     /* add vertices connected to deleted ones to the delete stack
-       using dstack_size (which changes inside the loop is not a mistake:
+       using dstack_size (which changes inside the loop) is not a mistake:
         the newly deleted vertices can have connections that need to be
         deleted too, and this way, we make sure they are deleted as well
         this is also the reason why we reset the edges here, since otherwise
