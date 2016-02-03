@@ -601,16 +601,16 @@ void runner_doghost(struct runner *r, struct cell *c) {
           /* Apply the correction to p->h and to the compact part. */
 /*          p->h += h_corr;*/
           p->h = 2.1f*maxsize;
-          voronoi_initialize(p, 2.0f*p->h);
+          voronoi_initialize(p);
           continue;
         } else {
           /* cell is complete, set size for next step */
           p->h = 2.1*maxsize;
           
           /* calculate volume and centroid */
-          calculate_cell(p);
+          voronoi_calculate_cell(p);
           /* calculate faces */
-          calculate_faces(p);
+          voronoi_calculate_faces(p);
 
           /* convert conserved variables to primitive variables */
           /* except for step 1, when we have to initialize the conserved
@@ -1000,7 +1000,7 @@ void runner_dokick1(struct runner *r, struct cell *c) {
         p->rho_dh = 0.0f;
         p->density.div_v = 0.0f;
         for (j = 0; j < 3; ++j) p->density.curl_v[j] = 0.0f;
-        voronoi_initialize(p, 2.0f*p->h);
+        voronoi_initialize(p);
       }
     }
 
@@ -1173,7 +1173,7 @@ void runner_dokick(struct runner *r, struct cell *c, int timer) {
       p->density.curl_v[0] = 0.0f;
       p->density.curl_v[1] = 0.0f;
       p->density.curl_v[2] = 0.0f;
-      voronoi_initialize(p, 2.0f*p->h);
+      voronoi_initialize(p);
     }
 
   }

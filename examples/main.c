@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
   /* Moving mesh initialization */
   for (k = 0; k < N; k++) {
     /* Initialize Voronoi cells */
-    voronoi_initialize(&parts[k], 2.0f*parts[k].h);
+    voronoi_initialize(&parts[k]);
 
     /* Convert thermal energy to pressure */
     parts[k].primitives.P *= (const_hydro_gamma - 1.0f) *

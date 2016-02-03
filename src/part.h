@@ -165,6 +165,52 @@ struct part {
     } force;
   };
 
+  /* Geometric Voronoi grid stuff */
+  struct {
+
+    /* Number of vertices */
+    int nvert;
+
+    /* Vertex positions */
+    float vertices[3*VORONOI_MAXVERT];
+
+    /* Number of edges for every vertex */
+    int orders[VORONOI_MAXVERT];
+
+    /* Edge information */
+    int edges[VORONOI_MAXEDGE];
+
+    /* Additional edge information */
+    int edgeindices[VORONOI_MAXEDGE];
+
+    /* Neighbour information */
+    unsigned long long ngbs[VORONOI_MAXEDGE];
+
+  } geometry;
+
+//  /* Integration specific Voronoi grid stuff */
+//  struct {
+
+//    /* Volume of the cell */
+//    float volume;
+
+//    /* Centroid of the cell */
+//    float centroid[3];
+
+//    /* Cell neighbours */
+//    unsigned long long ngbs[100];
+
+//    /* Number of faces */
+//    int nface;
+
+//    /* Face areas of the cell faces */
+//    float face_areas[100];
+
+//    /* Face midpoints */
+//    float face_midpoints[300];
+
+//  } voronoi;
+
   /* Voronoi grid stuff */
   struct {
 
