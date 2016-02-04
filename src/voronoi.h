@@ -498,7 +498,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
   int vindex;
   int visitflags[MAX_NUM_VERT];
   int dstack[MAX_NUM_VERT];
-/*  int dstack_size = 1;*/
+  int dstack_size = 1;
   float r;
   int cs, rp;
   int double_edge = 0;
@@ -727,720 +727,486 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
   dstack[0]++;
   cs++;
 
-#ifdef DO_NOT_COMPILE
-  int cp = vindex;
-  int rp = vindex;
-  // cp corresponds to the last added vertex
-  // rp corresponds to the first added vertex
+  int cp;
+  int iqs;
+  int new_double_edge;
+
+  cp = vindex;
+  rp = vindex;
   vindex++;
-  // loop around the edges until we arrive back at the original up vertex
-  // we start the search from the next neighbour vertex counterclockwise from
-  // neighbour lp
-  // qp always holds the last vertex above the plane
-  // lp always holds the last vertex below the plane
-  unsigned int count = 0;
   while(qp != up || qs != us){
-  //        cerr << "qp: " << qp << ", qs: " << qs << endl;
-  //        cerr << "up: " << up << ", us: " << us << endl;
-      count++;
-      if(count == 1000){
-  //            print_cell(c);
-          cerr << "Endless loop" << endl;
-          my_exit();
+
+    lp = voronoi_get_edge(&c, qp, qs);
+    lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+    if(lw == 0){
+
+      k = 1;
+      if(double_edge){
+        k = 0;
       }
-      lp = edge(c, qp, qs);
-      if(lp < 0){
-          cerr << "Negative edge!" << endl;
-          my_exit();
+      qs = voronoi_get_edgeindex(&c, qp, qs);
+      qp = lp;
+      iqs = qs;
+
+      k++;
+      qs++;
+      if(qs == c.orders[qp]){
+          qs = 0;
       }
-      lw = test_vertex(&c->vertices[3*lp], x, r2, l);
-      if(lw == 0){
-          LOGR("complicated case");
-          if(global_logging){
-              print_cell(c);
-          }
-          LOGD("lp: %i, lw: %i", lp, lw);
-          
-          // if we end up here, the next vertex lies on the plane
-          // there are several possibilities:
-          //  - the previous vertex was also on the plane, but is not
-          //    connected through a float edge with this one
-          //  - the previous vertex was also on the plane and is connected
-          //    with this one through a float edge
-          //  - the previous vertex was above the plane
-          
-          // we need to figure out how many edges the vertex gets
-          // for this, we count the number of neighbours below the plane
-          // in the moving direction
-          // if the previous vertex had a float edge, this vertex will have
-          // one neighbour less (sic voro++)
-          
-          int k = 1;
-          if(float_edge){
-              k = 0;
-          }
-          qs = edgeindex(c, qp, qs);
-          qp = lp;
-          int iqs = qs;
-          LOGD("qp: %i, qs: %i", qp, qs);
-          
-          do{
-              k++;
-              qs++;
-              if(qs == c->vorders[qp]){
-                  qs = 0;
-              }
-              lp = edge(c, qp, qs);
-              LOGD("lp: %i, qp: %i, qs: %i", lp, qp, qs);
-              lw = test_vertex(&c->vertices[3*lp], x, r2, l);
-              LOGD("pi: %g %g %g", pi->x[0], pi->x[1], pi->x[2]);
-              LOGD("pj: %g %g %g", pj->x[0], pj->x[1], pj->x[2]);
-          } while(lw == -1);
-          
-          // turns out we need a way to signal if this vertex has been visited
-          // before: visitflags
-          int j = visitflags[qp];
-          bool new_float_edge;
-          int i;
-          if(qp == up && qs == us){
-              LOGR("qp == up && qs == us");
-              new_float_edge = false;
-              if(j > 0){
-                  LOGR("k += c->vorders");
-                  k += c->vorders[j];
-              }
-          } else {
-              // NOTE TO SELF: a lot of different cases to unit test...
-              if(j > 0){
-                  LOGR("Vertex already visited");
-                  k += c->vorders[j];
-                  if(lw == 0){
-                      LOGR("Vertex on plane");
-                      i = -visitflags[lp];
-                      if(i > 0){
-                          LOGR("i > 0");
-                          if(edge(c, i, c->vorders[i]-1) == j){
-                              LOGR("new float edge");
-                              new_float_edge = true;
-                              k--;
-                          } else {
-                              LOGR("no new float edge");
-                              new_float_edge = false;
-                          }
-                      } else {
-                          LOGR("i <= 0");
-                          if(j == rp && lp == up && edge(c, qp, qs) == us){
-                              LOGR("new float edge");
-                              new_float_edge = true;
-                              k--;
-                          } else {
-                              LOGR("no new float edge");
-                              new_float_edge = false;
-                          }
-                      }
-                  } else {
-                      LOGR("Vertex not on plane");
-                      new_float_edge = false;
-                  }
-              } else {
-                  LOGR("Vertex not yet visited");
-                  if(lw == 0){
-                      LOGR("Vertex on plane");
-                      i = -visitflags[lp];
-                      if(i == cp){
-                          LOGR("new float edge");
-                          new_float_edge = true;
-                          k--;
-                      } else {
-                          LOGR("no new float edge");
-                          new_float_edge = false;
-                      }
-                  } else {
-                      LOGR("Vertex not on plane");
-                      new_float_edge = false;
-                  }
-              }
-          }
-          
-          LOGD("k: %i, new_float_edge: %i", k, new_float_edge);
-          
-          // create new vertex with order k
-          // no idea why it matters if the vertex has already been visited...
-          // oh no, I see: if the vertex has already been visited, it is
-          // already a new vertex. And we don't want to add new vertices
-          // twice, do we?
-          // (actually, in our paradigm, we do)
-          // problem: we will have to figure everything out ourselves...
-          // consult the voro++ source code to implement this case
-          if(j > 0){
-              cerr << "You have ended up in a very special situation, that is"
-                   << "not handled by this code.\nPlease contact your local"
-                   << "code developer, tell him exactly what you did to get"
-                   << "here, and ask him/her to solve this issue.\nThank you!"
-                   << endl;
-              my_exit();
-          }
-          
-          LOGR("Vertex not yet visited");
-          // allocate a new vertex
-          vindex = grow_arrays(c, k);
-          
-          int *mvisitflags = (int*) realloc(visitflags, c->nvert*sizeof(int));
-          visitflags = mvisitflags;
-          visitflags[vindex] = 0;
-          
-          c->vertices[3*vindex+0] = c->vertices[3*qp+0];
-          c->vertices[3*vindex+1] = c->vertices[3*qp+1];
-          c->vertices[3*vindex+2] = c->vertices[3*qp+2];
-  //                cerr << "Creating vertex" << endl;
-  //                cerr << c->vertices[3*vindex] << "\t" << c->vertices[3*vindex+1] << "\t" << c->vertices[3*vindex+2] << endl;
-          visitflags[qp] = -vindex;
-          dstack_size++;
-          int *more_dstack = (int*) realloc(dstack, dstack_size*sizeof(int));
-          dstack = more_dstack;
-          dstack[dstack_size-1] = qp;
-          j = vindex;
-          i = 0;
-          
-          if(!float_edge){
-              LOGR("No float edge");
-              set_ngb(c, j, i, pj->id);
-              set_edge(c, j, i, cp);
-              set_edgeindex(c, j, i, cs);
-              set_edge(c, cp, cs, j);
-              set_edgeindex(c, cp, cs, i);
-              i++;
-          }
-          
-          // copy the edges of the old vertex (one less if it was a new float edge)
-          qs = iqs;
-          int lim = k-1;
-          if(new_float_edge){
-              lim = k;
-          }
-          while(i < lim){
-              qs++;
-              if(qs == c->vorders[qp]){
-                  qs = 0;
-              }
-              lp = edge(c, qp, qs);
-              ls = edgeindex(c, qp, qs);
-              set_ngb(c, j, i, ngb(c, qp, qs));
-              set_edge(c, j, i, lp);
-              set_edgeindex(c, j, i, ls);
-              set_edge(c, lp, ls, j);
-              set_edgeindex(c, lp, ls, i);
-              set_edge(c, qp, qs, -1);
-              i++;
-          }
-          qs++;
-          if(qs == c->vorders[qp]){
-              qs = 0;
-          }
-          cs = i;
-          cp = j;
-          
-          if(new_float_edge){
-              set_ngb(c, j, 0, ngb(c, qp, qs));
-          } else {
-              set_ngb(c, j, cs, ngb(c, qp, qs));
-          }
-          
-          float_edge = new_float_edge;
-          if(global_logging){
-              print_cell(c);
-  //                my_exit();
-          }
+      lp = voronoi_get_edge(&c, qp, qs);
+      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+      while(lw == -1){
+        k++;
+        qs++;
+        if(qs == c.orders[qp]){
+            qs = 0;
+        }
+        lp = voronoi_get_edge(&c, qp, qs);
+        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+      }
+
+      j = visitflags[qp];
+      if(qp == up && qs == us){
+        new_double_edge = 0;
+        if(j > 0){
+          k += c.orders[j];
+        }
       } else {
-          LOGR("Normal case");
-          if(lw == 1){
-              LOGR("Above plane");
-  //            cout << "Vertex above plane" << endl;
-              // delete lp, it is still above the plane
-              // continue with the next vertex of lp
-              qs = edgeindex(c, qp, qs) + 1;
-              if(qs == c->vorders[lp]){
-                  qs = 0;
-              }
-              qp = lp;
-              q = l;
-              dstack_size++;
-              int *more_dstack = (int*) realloc(dstack, dstack_size*sizeof(int));
-              dstack = more_dstack;
-              dstack[dstack_size-1] = qp;
-          } else {
-              LOGR("normal vertex creation");
-  //            cout << "Vertex below plane" << endl;
-              // since the previous vertex was above the plane, we have found an
-              // intersecting edge
-              // add a new vertex
-              r = q/(q-l);
-              l = 1. - r;
-
-              vindex = grow_arrays(c, 3);
-
-              c->vertices[3*vindex+0] = c->vertices[3*lp+0]*r +
-                                        c->vertices[3*qp+0]*l;
-              c->vertices[3*vindex+1] = c->vertices[3*lp+1]*r +
-                                        c->vertices[3*qp+1]*l;
-              c->vertices[3*vindex+2] = c->vertices[3*lp+2]*r +
-                                        c->vertices[3*qp+2]*l;
-
-              // get the index of the edge lp in qp
-              ls = edgeindex(c, qp, qs);
-              set_edge(c, vindex, 0, cp);
-              set_edge(c, vindex, 1, lp);
-              set_edgeindex(c, vindex, 0, cs);
-              set_edgeindex(c, vindex, 1, ls);
-              set_edge(c, lp, ls, vindex);
-              set_edgeindex(c, lp, ls, 1);
-              set_edge(c, cp, cs, vindex);
-              set_edgeindex(c, cp, cs, 0);
-              set_edge(c, qp, qs, -1);
-              // ngbs
-              set_ngb(c, vindex, 0, pj->id);
-              set_ngb(c, vindex, 1, ngb(c, qp, qs));
-              set_ngb(c, vindex, 2, ngb(c, lp, ls));
-              // continue with the next edge of this vertex
-              qs = qs+1;
-              if(qs == c->vorders[qp]){
-                  qs = 0;
-              }
-              cp = vindex;
-              vindex++;
-              cs = 2;
-          }
-      }
-  }
-
-  set_edge(c, cp, cs, rp);
-  set_edge(c, rp, 0, cp);
-  set_edgeindex(c, cp, cs, 0);
-  set_edgeindex(c, rp, 0, cs);
-
-  if(global_logging){
-      print_cell(c);
-  }
-  //    cout << "delete stack:" << endl;
-  //    for(int i = 0; i < dstack_size; i++){
-  //        cout << dstack[i] << endl;
-  //    }
-
-  // add vertices connected to deleted ones to the delete stack
-  // using dstack_size (which changes inside the loop is not a mistake:
-  //  the newly deleted vertices can have connections that need to be
-  //  deleted too, and this way, we make sure they are deleted as well
-  //  this is also the reason why we reset the edges here, since otherwise
-  //  we might get stuck in an endless loop
-  // other interesting thought: we duplicate some vertices... We cannot simply
-  // remove the vertices connected to duplicated vertices, as these might be
-  // important. Or aren't they... Not sure...
-  for(int i = 0; i < dstack_size; i++){
-      for(int j = 0; j < c->vorders[dstack[i]]; j++){
-          if(edge(c, dstack[i], j) >= 0){
-              dstack_size++;
-              int *more_dstack = (int*) realloc(dstack, dstack_size*sizeof(int));
-              dstack = more_dstack;
-              dstack[dstack_size-1] = edge(c, dstack[i], j);
-              set_edge(c, dstack[i], j, -1);
-              set_edgeindex(c, dstack[i], j, -1);
-          }
-      }
-  }
-
-  maxnumdel = max(dstack_size, maxnumdel);
-
-  //    cout << "edges after:" << endl;
-  //    for(int i = 0; i < 6*c->nvert; i++){
-  //        cout << i << ": " << c->edges[i] << endl;
-  //    }
-
-  for(int i = 0; i < c->nvert; i++){
-      for(int j = 0; j < c->vorders[i]; j++){
-          int k = edge(c, i, j);
-          if(k >= 0 && edge(c, k, 0) < 0){
-              cerr << "Inconsistency!" << endl;
-              cerr << "i: " << i << ", j: " << j << endl;
-              print_cell(c);
-              my_exit();
-          }
-      }
-  }
-
-  //    cout << "edges before:" << endl;
-  //    for(int i = 0; i < 6*c->nvert; i++){
-  //        cout << i << ": " << c->edges[i] << endl;
-  //    }
-
-  // loop through the edges. If a deactivated edge is detected, remove the
-  // corresponding vertex by moving the next vertex (if it exists) to the
-  // current position. Also move its edges and change the value at the
-  // other endpoint of its edges
-  // the way we do it now is a bit tricky, since copying in place is maybe
-  // not safe if not all vertices have the same number of edges...
-  // better make new arrays
-  int *new_vorders = (int*) malloc(c->nvert*sizeof(int));
-  float *new_vertices = (float*) malloc(3*c->nvert*sizeof(float));
-  int *new_edgeoffsets = (int*) malloc(c->nvert*sizeof(int));
-  int *new_edges = (int*) malloc((c->edgeoffsets[c->nvert-1] + 2*c->vorders[c->nvert-1])*sizeof(int));
-  int *new_ngboffsets = (int*) malloc(c->nvert*sizeof(int));
-  unsigned long long *new_ngbs = (unsigned long long*) malloc((c->ngboffsets[c->nvert-1]+c->vorders[c->nvert-1])*sizeof(unsigned long long));
-  int newnvert;
-  for(int i = 0; i < c->nvert; i++){
-      if(edge(c, i, 0) < 0){
-          // find the next valid vertex
-          int j = i+1;
-          while(j < c->nvert && edge(c, j, 0) < 0){
-              j++;
-          }
-          if(j == c->nvert){
-              // no more valid other vertex found, we can stop
-              newnvert = i;
-              break;
-          }
-          // copy the vertex position
-          new_vertices[3*i+0] = c->vertices[3*j+0];
-          new_vertices[3*i+1] = c->vertices[3*j+1];
-          new_vertices[3*i+2] = c->vertices[3*j+2];
-          
-          // copy the vorder
-          new_vorders[i] = c->vorders[j];
-          
-          // copy the edgeoffset
-          if(i){
-              new_edgeoffsets[i] = new_edgeoffsets[i-1] + 2*new_vorders[i-1];
-          } else {
-              new_edgeoffsets[i] = 0;
-          }
-          
-          // copy the edges
-          for(int k = 0; k < c->vorders[j]; k++){
-              new_edges[new_edgeoffsets[i]+k] = edge(c, j, k);
-              new_edges[new_edgeoffsets[i]+new_vorders[i]+k] = edgeindex(c, j, k);
-          }
-          
-          // copy the ngbs
-          if(i){
-              new_ngboffsets[i] = new_ngboffsets[i-1] + new_vorders[i-1];
-          } else {
-              new_ngboffsets[i] = 0;
-          }
-          for(int k = 0; k < c->vorders[j]; k++){
-              new_ngbs[new_ngboffsets[i]+k] = ngb(c, j, k);
-          }
-          
-          for(int k = 0; k < c->vorders[j]; k++){
-              int m = edge(c, j, k);
-              int n = edgeindex(c, j, k);
-              // < j would also work...
-              if(m < i){
-                  new_edges[new_edgeoffsets[m]+n] = i;
+        if(j > 0){
+            k += c.orders[j];
+            if(lw == 0){
+              i = -visitflags[lp];
+              if(i > 0){
+                if(voronoi_get_edge(&c, i, c.orders[i]-1) == j){
+                  new_double_edge = 1;
+                  k--;
+                } else {
+                  new_double_edge = 0;
+                }
               } else {
-                  set_edge(c, m, n, i);
+                if(j == rp && lp == up && voronoi_get_edge(&c, qp, qs) == us){
+                  new_double_edge = 1;
+                  k--;
+                } else {
+                  new_double_edge = 0;
+                }
               }
+            } else {
+              new_double_edge = 0;
+            }
+        } else {
+          if(lw == 0){
+            i = -visitflags[lp];
+            if(i == cp){
+              new_double_edge = 1;
+              k--;
+            } else {
+              new_double_edge = 0;
+            }
+          } else {
+            new_double_edge = 0;
           }
-          
-          // deactivate the old edges
-          set_edge(c, j, 0, -1);
-      } else {
-          // simply copy the original values
-          new_vorders[i] = c->vorders[i];
-          new_vertices[3*i+0] = c->vertices[3*i+0];
-          new_vertices[3*i+1] = c->vertices[3*i+1];
-          new_vertices[3*i+2] = c->vertices[3*i+2];
-          new_edgeoffsets[i] = c->edgeoffsets[i];
-          for(int j = 0; j < c->vorders[i]; j++){
-              new_edges[c->edgeoffsets[i]+j] = edge(c, i, j);
-              new_edges[c->edgeoffsets[i]+c->vorders[i]+j] = edgeindex(c, i, j);
-          }
-          new_ngboffsets[i] = c->ngboffsets[i];
-          for(int j = 0; j < c->vorders[i]; j++){
-              new_ngbs[c->ngboffsets[i]+j] = ngb(c, i, j);
-          }
+        }
       }
+
+      if(j > 0){
+        error("Case not handled!");
+      }
+
+      /* create new order k vertex */
+      vindex = c.nvert;
+      c.nvert++;
+      if(c.nvert == MAX_NUM_VERT){
+        error("Too many vertices!");
+      }
+      c.orders[vindex] = k;
+      c.offsets[vindex] = c.offsets[vindex-1] + c.orders[vindex-1];
+      if(c.offsets[vindex] + k >= MAX_NUM_EDGE){
+        error("Too many edges!");
+      }
+
+      visitflags[vindex] = 0;
+      c.vertices[3*vindex+0] = c.vertices[3*qp+0];
+      c.vertices[3*vindex+1] = c.vertices[3*qp+1];
+      c.vertices[3*vindex+2] = c.vertices[3*qp+2];
+      visitflags[qp] = -vindex;
+      dstack[dstack_size] = qp;
+      dstack_size++;
+      j = vindex;
+      i = 0;
+
+      if(!double_edge){
+        voronoi_set_ngb(&c, j, i, pj->id);
+        voronoi_set_edge(&c, j, i, cp);
+        voronoi_set_edgeindex(&c, j, i, cs);
+        voronoi_set_edge(&c, cp, cs, j);
+        voronoi_set_edgeindex(&c, cp, cs, i);
+        i++;
+      }
+
+      qs = iqs;
+      iqs = k-1;
+      if(new_double_edge){
+        iqs = k;
+      }
+      while(i < iqs){
+        qs++;
+        if(qs == c.orders[qp]){
+            qs = 0;
+        }
+        lp = voronoi_get_edge(&c, qp, qs);
+        ls = voronoi_get_edgeindex(&c, qp, qs);
+        voronoi_set_ngb(&c, j, i, voronoi_get_ngb(&c, qp, qs));
+        voronoi_set_edge(&c, j, i, lp);
+        voronoi_set_edgeindex(&c, j, i, ls);
+        voronoi_set_edge(&c, lp, ls, j);
+        voronoi_set_edgeindex(&c, lp, ls, i);
+        voronoi_set_edge(&c, qp, qs, -1);
+        i++;
+      }
+      qs++;
+      if(qs == c.orders[qp]){
+        qs = 0;
+      }
+      cs = i;
+      cp = j;
+
+      if(new_double_edge){
+        voronoi_set_ngb(&c, j, 0, voronoi_get_ngb(&c, qp, qs));
+      } else {
+        voronoi_set_ngb(&c, j, cs, voronoi_get_ngb(&c, qp, qs));
+      }
+
+      double_edge = new_double_edge;
+
+    } else { // if(lw == 0)
+
+      if(lw == 1){
+        qs = voronoi_get_edgeindex(&c, qp, qs) + 1;
+        if(qs == c.orders[lp]){
+            qs = 0;
+        }
+        qp = lp;
+        q = l;
+        dstack[dstack_size] = qp;
+        dstack_size++;
+      } else {
+
+        r = q/(q-l);
+        l = 1.0f - r;
+
+        /* create new order 3 vertex */
+        vindex = c.nvert;
+        c.nvert++;
+        if(c.nvert == MAX_NUM_VERT){
+          error("Too many vertices!");
+        }
+        c.orders[vindex] = 3;
+        c.offsets[vindex] = c.offsets[vindex-1] + c.orders[vindex-1];
+        if(c.offsets[vindex] + 3 >= MAX_NUM_EDGE){
+          error("Too many edges!");
+        }
+
+        c.vertices[3*vindex+0] = c.vertices[3*lp+0] * r +
+                                 c.vertices[3*qp+0] * l;
+        c.vertices[3*vindex+1] = c.vertices[3*lp+1] * r +
+                                 c.vertices[3*qp+1] * l;
+        c.vertices[3*vindex+2] = c.vertices[3*lp+2] * r +
+                                 c.vertices[3*qp+2] * l;
+
+        ls = voronoi_get_edgeindex(&c, qp, qs);
+        voronoi_set_edge(&c, vindex, 0, cp);
+        voronoi_set_edge(&c, vindex, 1, lp);
+        voronoi_set_edgeindex(&c, vindex, 0, cs);
+        voronoi_set_edgeindex(&c, vindex, 1, ls);
+        voronoi_set_edge(&c, lp, ls, vindex);
+        voronoi_set_edgeindex(&c, lp, ls, 1);
+        voronoi_set_edge(&c, cp, cs, vindex);
+        voronoi_set_edgeindex(&c, cp, cs, 0);
+        voronoi_set_edge(&c, qp, qs, -1);
+
+        voronoi_set_ngb(&c, vindex, 0, pj->id);
+        voronoi_set_ngb(&c, vindex, 1, voronoi_get_ngb(&c, qp, qs));
+        voronoi_set_ngb(&c, vindex, 2, voronoi_get_ngb(&c, lp, ls));
+
+        qs = qs+1;
+        if(qs == c.orders[qp]){
+          qs = 0;
+        }
+        cp = vindex;
+        vindex++;
+        cs = 2;
+      } // if(lw == 1)
+
+    } // if(lw == 0)
+
+  } // while()
+
+  voronoi_set_edge(&c, cp, cs, rp);
+  voronoi_set_edge(&c, rp, 0, cp);
+  voronoi_set_edgeindex(&c, cp, cs, 0);
+  voronoi_set_edgeindex(&c, rp, 0, cs);
+
+  for(i = 0; i < dstack_size; i++){
+    for(j = 0; j < c.orders[dstack[i]]; j++){
+      if(voronoi_get_edge(&c, dstack[i], j) >= 0){
+        dstack[dstack_size] = voronoi_get_edge(&c, dstack[i], j);
+        dstack_size++;
+        voronoi_set_edge(&c, dstack[i], j, -1);
+        voronoi_set_edgeindex(&c, dstack[i], j, -1);
+      }
+    }
   }
 
-  free(c->vorders);
-  free(c->vertices);
-  free(c->edgeoffsets);
-  free(c->edges);
-  free(c->ngboffsets);
-  free(c->ngbs);
-  c->nvert = newnvert;
-  int *mvorder = (int*) realloc(new_vorders, c->nvert*sizeof(int));
-  c->vorders = mvorder;
-  float *mvert = (float*) realloc(new_vertices, 3*c->nvert*sizeof(float));
-  c->vertices = mvert;
-  int *medgeof = (int*) realloc(new_edgeoffsets, c->nvert*sizeof(int));
-  c->edgeoffsets = medgeof;
-  int *medge = (int*) realloc(new_edges, (c->edgeoffsets[c->nvert-1] + 2*c->vorders[c->nvert-1])*sizeof(int));
-  c->edges = medge;
-  int *mngbof = (int*) realloc(new_ngboffsets, c->nvert*sizeof(int));
-  c->ngboffsets = mngbof;
-  unsigned long long *mngb = (unsigned long long*) realloc(new_ngbs, (c->ngboffsets[c->nvert-1]+c->vorders[c->nvert-1])*sizeof(unsigned long long));
-  c->ngbs = mngb;
+  /* remove deleted vertices from all arrays */
+  struct voronoi_cell new_cell;
+  for(vindex = 0; vindex < c.nvert; vindex++){
+    j = vindex + 1;
+    /* find next edge that is not deleted */
+    while(j < c.nvert && voronoi_get_edge(&c, j, 0) < 0){
+      j++;
+    }
 
-  maxnumvert = max(c->nvert, maxnumvert);
-  maxnumedge = max(6*c->nvert, maxnumedge);
+    if(j == c.nvert){
+      /* ready */
+      break;
+    }
 
-  //    for(int i = 0; i < c->nvert; i++){
-  //        for(int j = 0; j < c->vorders[i]; j++){
-  //            for(int k = 0; k < c->vorders[i]; k++){
-  //                if(j != k){
-  //                    if(c->edges[c->edgeoffsets[i]+j] == c->edges[c->edgeoffsets[i]+k]){
-  //                        cerr << "float edge!" << endl;
-  //                        print_cell(c);
-  //                        my_exit();
-  //                    }
-  //                }
-  //            }
-  //        }
-  //    }
+    /* copy vertices */
+    new_cell.vertices[3*vindex+0] = c.vertices[3*j+0];
+    new_cell.vertices[3*vindex+1] = c.vertices[3*j+1];
+    new_cell.vertices[3*vindex+2] = c.vertices[3*j+2];
 
-  if(global_logging){
-      print_cell(c);
+    /* copy order */
+    new_cell.orders[vindex] = c.orders[j];
+
+    /* set offset */
+    if(vindex){
+      new_cell.offsets[vindex] = new_cell.offsets[vindex-1]
+                                   + new_cell.orders[vindex-1];
+    } else {
+      new_cell.offsets[vindex] = 0;
+    }
+
+    /* copy edges, edgeindices and ngbs */
+    for(k = 0; k < c.orders[j]; k++){
+      voronoi_set_edge(&new_cell, vindex, k, voronoi_get_edge(&c, j, k));
+      voronoi_set_edgeindex(&new_cell, vindex, k,
+                            voronoi_get_edgeindex(&c, j, k));
+      voronoi_set_ngb(&new_cell, vindex, k, voronoi_get_ngb(&c, j, k));
+    }
   }
+  new_cell.nvert = vindex;
 
-  // need to implement this!!
-  //    collapse_order2(c);
-
-  //    cout << "edges after:" << endl;
-  //    for(int i = 0; i < 6*c->nvert; i++){
-  //        cout << i << ": " << c->edges[i] << endl;
-  //    }
-  //    exit(1);
-
-  //    for(int i = 0; i < c->nvert; i++){
-  //        cout << i << ":" << endl;
-  //        cout << c->vertices[3*i] << "\t" << c->vertices[3*i+1] << "\t"
-  //             << c->vertices[3*i+2] << endl;
-  //    }
-  //    exit(1);
-
-  free(visitflags);
-
-  set_particle(pi, c);
-#endif // DO_NOT_COMPILE
+  voronoi_set_particle_values(pi, &new_cell);
 
 }
 
 __attribute__((always_inline)) INLINE static float voronoi_volume_tetrahedron(
     float *v1, float *v2, float *v3, float *v4){
 
-    float V;
-    float r1[3], r2[3], r3[3];
+  float V;
+  float r1[3], r2[3], r3[3];
 
-    r1[0] = v2[0] - v1[0];
-    r1[1] = v2[1] - v1[1];
-    r1[2] = v2[2] - v1[2];
-    r2[0] = v3[0] - v1[0];
-    r2[1] = v3[1] - v1[1];
-    r2[2] = v3[2] - v1[2];
-    r3[0] = v4[0] - v1[0];
-    r3[1] = v4[1] - v1[1];
-    r3[2] = v4[2] - v1[2];
-    V = fabs(r1[0]*r2[1]*r3[2] + r1[1]*r2[2]*r3[0] + r1[2]*r2[0]*r3[1] -
-             r1[2]*r2[1]*r3[0] - r2[2]*r3[1]*r1[0] - r3[2]*r1[1]*r2[0]);
-    V /= 6.;
-    return V;
+  r1[0] = v2[0] - v1[0];
+  r1[1] = v2[1] - v1[1];
+  r1[2] = v2[2] - v1[2];
+  r2[0] = v3[0] - v1[0];
+  r2[1] = v3[1] - v1[1];
+  r2[2] = v3[2] - v1[2];
+  r3[0] = v4[0] - v1[0];
+  r3[1] = v4[1] - v1[1];
+  r3[2] = v4[2] - v1[2];
+  V = fabs(r1[0]*r2[1]*r3[2] + r1[1]*r2[2]*r3[0] + r1[2]*r2[0]*r3[1] -
+           r1[2]*r2[1]*r3[0] - r2[2]*r3[1]*r1[0] - r3[2]*r1[1]*r2[0]);
+  V /= 6.;
+  return V;
 
 }
 
 __attribute__((always_inline)) INLINE static void voronoi_centroid_tetrahedron(
     float *centroid, float *v1, float *v2, float *v3, float *v4){
 
-    centroid[0] = 0.25f*(v1[0] + v2[0] + v3[0] + v4[0]);
-    centroid[1] = 0.25f*(v1[1] + v2[1] + v3[1] + v4[1]);
-    centroid[2] = 0.25f*(v1[2] + v2[2] + v3[2] + v4[2]);
+  centroid[0] = 0.25f*(v1[0] + v2[0] + v3[0] + v4[0]);
+  centroid[1] = 0.25f*(v1[1] + v2[1] + v3[1] + v4[1]);
+  centroid[2] = 0.25f*(v1[2] + v2[2] + v3[2] + v4[2]);
 
 }
 
 __attribute__((always_inline)) INLINE static void voronoi_calculate_cell(
     struct part *p){
 
-    float v1[3], v2[3], v3[3], v4[3];
-    int i, j, k, l, m, n;
-    float tcentroid[3];
-    float tvol;
+  float v1[3], v2[3], v3[3], v4[3];
+  int i, j, k, l, m, n;
+  float tcentroid[3];
+  float tvol;
+  struct voronoi_cell c;
 
-    /* we need to calculate the volume of the tetrahedra formed by the first
-       vertex and the triangles that make up the other faces
-       since we do not store faces explicitly, this means keeping track of the
-       edges that have been processed somehow
-       we follow the method used in voro++ and "flip" processed edges to
-       negative values
-       this also means that we need to process all triangles corresponding to
-       an edge at once */
-    p->voronoi.volume = 0.0f;
-    v1[0] = p->voronoi.vertices[0];
-    v1[1] = p->voronoi.vertices[1];
-    v1[2] = p->voronoi.vertices[2];
-    p->voronoi.centroid[0] = 0.0f;
-    p->voronoi.centroid[1] = 0.0f;
-    p->voronoi.centroid[2] = 0.0f;
+  voronoi_set_cell_values(p, &c);
+
+  /* we need to calculate the volume of the tetrahedra formed by the first
+     vertex and the triangles that make up the other faces
+     since we do not store faces explicitly, this means keeping track of the
+     edges that have been processed somehow
+     we follow the method used in voro++ and "flip" processed edges to
+     negative values
+     this also means that we need to process all triangles corresponding to
+     an edge at once */
+  p->voronoi.volume = 0.0f;
+  v1[0] = c.vertices[0];
+  v1[1] = c.vertices[1];
+  v1[2] = c.vertices[2];
+  p->voronoi.centroid[0] = 0.0f;
+  p->voronoi.centroid[1] = 0.0f;
+  p->voronoi.centroid[2] = 0.0f;
+  
+  /* loop over all vertices (except the first one) */
+  for(i = 1; i < c.nvert; i++){
+
+    v2[0] = p->voronoi.vertices[3*i];
+    v2[1] = p->voronoi.vertices[3*i+1];
+    v2[2] = p->voronoi.vertices[3*i+2];
     
-    /* loop over all vertices (except the first one) */
-    for(i = 1; i < p->voronoi.nvert; i++){
-        v2[0] = p->voronoi.vertices[3*i];
-        v2[1] = p->voronoi.vertices[3*i+1];
-        v2[2] = p->voronoi.vertices[3*i+2];
-        
-        /*  loop over the edges of the vertex*/
-        for(j = 0; j < 3; j++){
-            k = p->voronoi.edges[6*i+j];
-            /* check if the edge has already been processed */
-            if(k >= 0){
-                /* mark the edge as processed */
-                p->voronoi.edges[6*i+j] = -k-1;
-                
-                /* do some magic
-                   code below brainlessly copied from voro++ */
-                l = p->voronoi.edges[6*i+3+j];
-                if(l == 2){
-                    l = 0;
-                } else {
-                    l++;
-                }
-                v3[0] = p->voronoi.vertices[3*k];
-                v3[1] = p->voronoi.vertices[3*k+1];
-                v3[2] = p->voronoi.vertices[3*k+2];
-                m = p->voronoi.edges[6*k+l];
-                p->voronoi.edges[6*k+l] = -1-m;
-                while(m != i){
-                    n = p->voronoi.edges[6*k+3+l];
-                    if(n == 2){
-                        n = 0;
-                    } else {
-                        n++;
-                    }
-                    v4[0] = p->voronoi.vertices[3*m];
-                    v4[1] = p->voronoi.vertices[3*m+1];
-                    v4[2] = p->voronoi.vertices[3*m+2];
-                    tvol = voronoi_volume_tetrahedron(v1, v2, v3, v4);
-                    p->voronoi.volume += tvol;
-                    voronoi_centroid_tetrahedron(tcentroid, v1, v2, v3, v4);
-                    p->voronoi.centroid[0] += tcentroid[0]*tvol;
-                    p->voronoi.centroid[1] += tcentroid[1]*tvol;
-                    p->voronoi.centroid[2] += tcentroid[2]*tvol;
-                    k = m;
-                    l = n;
-                    v3[0] = v4[0];
-                    v3[1] = v4[1];
-                    v3[2] = v4[2];
-                    m = p->voronoi.edges[6*k+l];
-                    p->voronoi.edges[6*k+l] = -1-m;
-                }
-            }
+    /*  loop over the edges of the vertex*/
+    for(j = 0; j < c.orders[i]; j++){
+
+      k = voronoi_get_edge(&c, i, j);
+
+      if(k >= 0){
+
+        /* mark the edge as processed */
+        voronoi_set_edge(&c, i, j, -k-1);
+
+        l = voronoi_get_edgeindex(&c, i, j) + 1;
+        if(l == c.orders[k]){
+          l = 0;
         }
-    }
-    
-    p->voronoi.centroid[0] /= p->voronoi.volume;
-    p->voronoi.centroid[1] /= p->voronoi.volume;
-    p->voronoi.centroid[2] /= p->voronoi.volume;
-    
-    /* centroid was calculated relative w.r.t. particle position */
-    p->voronoi.centroid[0] += p->x[0];
-    p->voronoi.centroid[1] += p->x[1];
-    p->voronoi.centroid[2] += p->x[2];
-    
-    // unmark edges
-    for(i = 0; i < p->voronoi.nvert; i++){
-        for(j = 0; j < 3; j++){
-            if(p->voronoi.edges[6*i+j] < 0){
-                p->voronoi.edges[6*i+j] = -p->voronoi.edges[6*i+j]-1;
-            } else {
-                error("edge inconsistency");
-            }
-        }
-    }
+        v3[0] = c.vertices[3*k+0];
+        v3[1] = c.vertices[3*k+1];
+        v3[2] = c.vertices[3*k+2];
+        m = voronoi_get_edge(&c, k, l);
+        voronoi_set_edge(&c, k, l, -1-m);
+
+        while(m != i){
+          n = voronoi_get_edgeindex(&c, k, l) + 1;
+          if(n == c.orders[m]){
+            n = 0;
+          }
+          v4[0] = c.vertices[3*m+0];
+          v4[1] = c.vertices[3*m+1];
+          v4[2] = c.vertices[3*m+2];
+          tvol = voronoi_volume_tetrahedron(v1, v2, v3, v4);
+          p->voronoi.volume += tvol;
+          voronoi_centroid_tetrahedron(tcentroid, v1, v2, v3, v4);
+          p->voronoi.centroid[0] += tcentroid[0]*tvol;
+          p->voronoi.centroid[1] += tcentroid[1]*tvol;
+          p->voronoi.centroid[2] += tcentroid[2]*tvol;
+          k = m;
+          l = n;
+          v3[0] = v4[0];
+          v3[1] = v4[1];
+          v3[2] = v4[2];
+          m = voronoi_get_edge(&c, k, l);
+          voronoi_set_edge(&c, k, l, -1-m);
+        } // while()
+
+      } // if(k >= 0)
+
+    } // for(j)
+
+  } // for(i)
+
+  p->voronoi.centroid[0] /= p->voronoi.volume;
+  p->voronoi.centroid[1] /= p->voronoi.volume;
+  p->voronoi.centroid[2] /= p->voronoi.volume;
+
+  /* centroid was calculated relative w.r.t. particle position */
+  p->voronoi.centroid[0] += p->x[0];
+  p->voronoi.centroid[1] += p->x[1];
+  p->voronoi.centroid[2] += p->x[2];
 
 }
 
 __attribute__((always_inline)) INLINE static void voronoi_calculate_faces(
     struct part *p){
 
-    unsigned long long newngbs[300];
-    int i, j, k, l, m, n;
-    float area;
-    float midpoint[3];
-    float u[3], v[3], w[3];
-    float loc_area;
+  int i, j, k, l, m, n;
+  float area;
+  float midpoint[3];
+  float u[3], v[3], w[3];
+  float loc_area;
+  struct voronoi_cell c;
 
-    p->voronoi.nface = 0;
-    for(i = 0; i < p->voronoi.nvert; i++){
-        for(j = 0; j < 3; j++){
-            k = p->voronoi.edges[6*i+j];
-            if(k >= 0){
-                newngbs[p->voronoi.nface] = p->voronoi.ngbs[3*i+j];
-                area = 0.;
-                midpoint[0] = 0.;
-                midpoint[1] = 0.;
-                midpoint[2] = 0.;
-                p->voronoi.edges[6*i+j] = -1 - k;
-                l = p->voronoi.edges[6*i+3+j] + 1;
-                if(l == 3){
-                    l = 0;
-                }
-                m = p->voronoi.edges[6*k+l];
-                p->voronoi.edges[6*k+l] = -1 - m;
-                while(m != i){
-                    n = p->voronoi.edges[6*k+3+l] + 1;
-                    if(n == 3){
-                        n = 0;
-                    }
-                    u[0] = p->voronoi.vertices[3*k+0] - p->voronoi.vertices[3*i+0];
-                    u[1] = p->voronoi.vertices[3*k+1] - p->voronoi.vertices[3*i+1];
-                    u[2] = p->voronoi.vertices[3*k+2] - p->voronoi.vertices[3*i+2];
-                    v[0] = p->voronoi.vertices[3*m+0] - p->voronoi.vertices[3*i+0];
-                    v[1] = p->voronoi.vertices[3*m+1] - p->voronoi.vertices[3*i+1];
-                    v[2] = p->voronoi.vertices[3*m+2] - p->voronoi.vertices[3*i+2];
-                    w[0] = u[1]*v[2] - u[2]*v[1];
-                    w[1] = u[2]*v[0] - u[0]*v[2];
-                    w[2] = u[0]*v[1] - u[1]*v[0];
-                    loc_area = sqrtf(w[0]*w[0] + w[1]*w[1] + w[2]*w[2]);
-                    area += loc_area;
-                    midpoint[0] += loc_area*(p->voronoi.vertices[3*k+0] +
-                                             p->voronoi.vertices[3*i+0] +
-                                             p->voronoi.vertices[3*m+0]);
-                    midpoint[1] += loc_area*(p->voronoi.vertices[3*k+1] +
-                                             p->voronoi.vertices[3*i+1] +
-                                             p->voronoi.vertices[3*m+1]);
-                    midpoint[2] += loc_area*(p->voronoi.vertices[3*k+2] +
-                                             p->voronoi.vertices[3*i+2] +
-                                             p->voronoi.vertices[3*m+2]);
-                    k = m;
-                    l = n;
-                    m = p->voronoi.edges[6*k+l];
-                    p->voronoi.edges[6*k+l] = -1 - m;
-                }
-                p->voronoi.face_areas[p->voronoi.nface] = 0.5f*area;
-                p->voronoi.face_midpoints[3*p->voronoi.nface+0] = midpoint[0]/area/3.0f;
-                p->voronoi.face_midpoints[3*p->voronoi.nface+1] = midpoint[1]/area/3.0f;
-                p->voronoi.face_midpoints[3*p->voronoi.nface+2] = midpoint[2]/area/3.0f;
-                /* face midpoint was calculated relative to particle position */
-                p->voronoi.face_midpoints[3*p->voronoi.nface+0] += p->x[0];
-                p->voronoi.face_midpoints[3*p->voronoi.nface+1] += p->x[1];
-                p->voronoi.face_midpoints[3*p->voronoi.nface+2] += p->x[2];
-                p->voronoi.nface++;
-            }
+  voronoi_set_cell_values(p, &c);
+
+  p->voronoi.nface = 0;
+  for(i = 0; i < c.nvert; i++){
+
+    for(j = 0; j < c.orders[i]; j++){
+
+      k = voronoi_get_edge(&c, i, j);
+
+      if(k >= 0){
+
+        p->voronoi.ngbs[p->voronoi.nface] = voronoi_get_ngb(&c, i, j);
+        area = 0.;
+        midpoint[0] = 0.;
+        midpoint[1] = 0.;
+        midpoint[2] = 0.;
+        voronoi_set_edge(&c, i, j, -1-k);
+        l = voronoi_get_edgeindex(&c, i, j) + 1;
+        if(l == c.orders[k]){
+          l = 0;
         }
-    }
+        m = voronoi_get_edge(&c, k, l);
+        voronoi_set_edge(&c, k, l, -1-m);
 
-    /* update ngbs */
-    for(i = 0; i < 300; i++){
-        p->voronoi.ngbs[i] = newngbs[i];
-    }
-
-    /* unmark edges */
-    for(i = 0; i < p->voronoi.nvert; i++){
-        for(j = 0; j < 3; j++){
-            if(p->voronoi.edges[6*i+j] < 0){
-                p->voronoi.edges[6*i+j] = -p->voronoi.edges[6*i+j]-1;
-            } else {
-                error("edge inconsistency");
-            }
+        while(m != i){
+          n = voronoi_get_edgeindex(&c, k, l) + 1;
+          if(n == c.orders[m]){
+            n = 0;
+          }
+          u[0] = c.vertices[3*k+0] - c.vertices[3*i+0];
+          u[1] = c.vertices[3*k+1] - c.vertices[3*i+1];
+          u[2] = c.vertices[3*k+2] - c.vertices[3*i+2];
+          v[0] = c.vertices[3*m+0] - c.vertices[3*i+0];
+          v[1] = c.vertices[3*m+1] - c.vertices[3*i+1];
+          v[2] = c.vertices[3*m+2] - c.vertices[3*i+2];
+          w[0] = u[1]*v[2] - u[2]*v[1];
+          w[1] = u[2]*v[0] - u[0]*v[2];
+          w[2] = u[0]*v[1] - u[1]*v[0];
+          loc_area = sqrtf(w[0]*w[0] + w[1]*w[1] + w[2]*w[2]);
+          area += loc_area;
+          midpoint[0] += loc_area*(c.vertices[3*k+0] +
+                                   c.vertices[3*i+0] +
+                                   c.vertices[3*m+0]);
+          midpoint[1] += loc_area*(c.vertices[3*k+1] +
+                                   c.vertices[3*i+1] +
+                                   c.vertices[3*m+1]);
+          midpoint[2] += loc_area*(c.vertices[3*k+2] +
+                                   c.vertices[3*i+2] +
+                                   c.vertices[3*m+2]);
+          k = m;
+          l = n;
+          m = voronoi_get_edge(&c, k, l);
+          voronoi_set_edge(&c, k, l, -1-m);
         }
-    }
+
+        p->voronoi.face_areas[p->voronoi.nface] = 0.5f*area;
+        p->voronoi.face_midpoints[3*p->voronoi.nface+0] = midpoint[0]/area/3.0f;
+        p->voronoi.face_midpoints[3*p->voronoi.nface+1] = midpoint[1]/area/3.0f;
+        p->voronoi.face_midpoints[3*p->voronoi.nface+2] = midpoint[2]/area/3.0f;
+        /* face midpoint was calculated relative to particle position */
+        p->voronoi.face_midpoints[3*p->voronoi.nface+0] += p->x[0];
+        p->voronoi.face_midpoints[3*p->voronoi.nface+1] += p->x[1];
+        p->voronoi.face_midpoints[3*p->voronoi.nface+2] += p->x[2];
+        p->voronoi.nface++;
+
+      } // if(k >= 0)
+
+    } // for(j)
+
+  } // for(i)
 
 }
 
@@ -1449,81 +1215,48 @@ __attribute__((always_inline)) INLINE static void voronoi_calculate_faces(
  *
  * If the face does not exist, we return -1.
  */
-
 __attribute__((always_inline)) INLINE static int voronoi_get_face_index(
     struct part *pi, struct part *pj){
 
-    /* alternative (less precise) neighbour finding */
-/*    float ri2, rj2;*/
-/*    for(int i = 0; i < pi->voronoi.nface; i++){*/
-/*        ri2 = 0.0f;*/
-/*        for(int j = 0; j < 3; j++){*/
-/*            float x = pi->voronoi.face_midpoints[3*i+j] - pi->x[j];*/
-/*            if(x < -0.5f){*/
-/*                x += 1.0f;*/
-/*            }*/
-/*            if(x > 0.5f){*/
-/*                x -= 1.0f;*/
-/*            }*/
-/*            ri2 += x * x;*/
-/*        }*/
-/*        rj2 = 0.0f;*/
-/*        for(int j = 0; j < 3; j++){*/
-/*            float x = pi->voronoi.face_midpoints[3*i+j] - pj->x[j];*/
-/*            if(x < -0.5f){*/
-/*                x += 1.0f;*/
-/*            }*/
-/*            if(x > 0.5f){*/
-/*                x -= 1.0f;*/
-/*            }*/
-/*            rj2 += x * x;*/
-/*        }*/
-/*        if(fabs(ri2-rj2) < 1.e-8){*/
-/*            return i;*/
-/*        }*/
-/*    }*/
-/*    return -1;*/
-
-    /* explicit neighbour tracking */
-    int i;
-    for(i = 0; i < pi->voronoi.nface; i++){
-        if(pi->voronoi.ngbs[i] == pj->id){
-            return i;
-        }
-    }
-    /* particles are not cell neighbours */
-    return -1;
+  int i;
+  for(i = 0; i < pi->voronoi.nface; i++){
+      if(pi->voronoi.ngbs[i] == pj->id){
+          return i;
+      }
+  }
+  /* particles are not cell neighbours */
+  return -1;
 
 }
 
 /**
  * @brief Calculate the velocity of the face between pi and pj
  */
-
 __attribute__((always_inline)) INLINE static void voronoi_get_face_velocity(
-    float r2, float *dx, struct part *pi, struct part *pj, float *midface, float *vface){
+    float r2, float *dx, struct part *pi, struct part *pj, float *midface,
+    float *vface){
 
-    float xd[3];
-    float vproj;
+  float xd[3];
+  float vproj;
 
-    vface[0] = 0.5f * (pi->primitives.v[0] + pj->primitives.v[0]);
-    vface[1] = 0.5f * (pi->primitives.v[1] + pj->primitives.v[1]);
-    vface[2] = 0.5f * (pi->primitives.v[2] + pj->primitives.v[2]);
+  vface[0] = 0.5f * (pi->primitives.v[0] + pj->primitives.v[0]);
+  vface[1] = 0.5f * (pi->primitives.v[1] + pj->primitives.v[1]);
+  vface[2] = 0.5f * (pi->primitives.v[2] + pj->primitives.v[2]);
 
-    /* we cannot simply calculate xd as 0.5*(xi+xj), since this does not take
-       the periodic corrections into account */
-    xd[0] = pi->x[0] - 0.5f*dx[0];
-    xd[1] = pi->x[1] - 0.5f*dx[1];
-    xd[2] = pi->x[2] - 0.5f*dx[2];
+  /* we cannot simply calculate xd as 0.5*(xi+xj), since this does not take
+     the periodic corrections into account */
+  xd[0] = pi->x[0] - 0.5f*dx[0];
+  xd[1] = pi->x[1] - 0.5f*dx[1];
+  xd[2] = pi->x[2] - 0.5f*dx[2];
 
-    vproj = (pi->primitives.v[0] - pj->primitives.v[0]) * (midface[0] - xd[0])
-              + (pi->primitives.v[1] - pj->primitives.v[1]) * (midface[1] - xd[1])
-              + (pi->primitives.v[2] - pj->primitives.v[2]) * (midface[2] - xd[2]);
+  vproj = (pi->primitives.v[0] - pj->primitives.v[0]) * (midface[0] - xd[0])
+          + (pi->primitives.v[1] - pj->primitives.v[1]) * (midface[1] - xd[1])
+          + (pi->primitives.v[2] - pj->primitives.v[2]) * (midface[2] - xd[2]);
 
-    /* minus sign due to the reverse definition of dx w.r.t. Springel 2010 */
-    vface[0] -= vproj * dx[0] / r2;
-    vface[1] -= vproj * dx[1] / r2;
-    vface[2] -= vproj * dx[2] / r2;
+  /* minus sign due to the reverse definition of dx w.r.t. Springel 2010 */
+  vface[0] -= vproj * dx[0] / r2;
+  vface[1] -= vproj * dx[1] / r2;
+  vface[2] -= vproj * dx[2] / r2;
 
 }
 
