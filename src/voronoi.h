@@ -24,12 +24,22 @@
 #include <string.h>
 
 /* Box boundary flags used to signal cells neighbouring the box boundary */
-#define VORONOI_BOX_FRONT   0xfffffff0
-#define VORONOI_BOX_BACK    0xfffffff1
-#define VORONOI_BOX_TOP     0xfffffff2
-#define VORONOI_BOX_BOTTOM  0xfffffff3
-#define VORONOI_BOX_LEFT    0xfffffff4
-#define VORONOI_BOX_RIGHT   0xfffffff5
+#define VORONOI_BOX_FRONT   18446744073709551600llu
+#define VORONOI_BOX_BACK    18446744073709551601llu
+#define VORONOI_BOX_TOP     18446744073709551602llu
+#define VORONOI_BOX_BOTTOM  18446744073709551603llu
+#define VORONOI_BOX_LEFT    18446744073709551604llu
+#define VORONOI_BOX_RIGHT   18446744073709551605llu
+
+struct voronoi_box {
+
+  /* anchor of the box */
+  float anchor[3];
+
+  /* side lenghs of the box */
+  float sides[3];
+
+};
 
 /* Maximal number of vertices allowed for a Voronoi cell during the cell
    construction */
@@ -121,8 +131,36 @@ __attribute__((always_inline)) INLINE static void voronoi_set_particle_values(
   memcpy(p->geometry.orders, c->orders, c->nvert*sizeof(int));
   memcpy(p->geometry.edges, c->edges, numedge*sizeof(int));
   memcpy(p->geometry.edgeindices, c->edgeindices, numedge*sizeof(int));
-  memcpy(p->geometry.ngbs,c->ngbs,  numedge*sizeof(unsigned long long));
+  memcpy(p->geometry.ngbs, c->ngbs, numedge*sizeof(unsigned long long));
 
+}
+
+/**
+ * @brief For debugging purposes
+ */
+__attribute__((always_inline)) INLINE static void voronoi_print_cell(
+  struct part *p){
+
+  int i, j;
+  struct voronoi_cell c;
+
+  voronoi_set_cell_values(p, &c);
+
+  for(i = 0; i < c.nvert; i++){
+    fprintf(stderr, "%i: %g %g %g (%i)\n", i, c.vertices[3*i],
+                                           c.vertices[3*i+1], c.vertices[3*i+2],
+                                           c.orders[i]);
+    for(j = 0; j < c.orders[i]; j++){
+      fprintf(stderr, "%i (%i)", c.edges[c.offsets[i]+j],
+                                 c.edgeindices[c.offsets[i]+j]);
+      if(j < c.orders[i]-1){
+        fprintf(stderr, "\t");
+      } else {
+        fprintf(stderr, "\n");
+      }
+    }
+  }
+  fprintf(stderr, "\n");
 }
 
 /**
@@ -199,51 +237,56 @@ __attribute__((always_inline)) INLINE static int voronoi_test_vertex(
  *  position
  */
 __attribute__((always_inline)) INLINE static void voronoi_initialize(
-    struct part *p){
+    struct part *p, struct voronoi_box *b){
 
   p->geometry.nvert = 8;
 
-  double *origin = p->x;
+/*  b->anchor[0] = -1.0f;*/
+/*  b->anchor[1] = -1.0f;*/
+/*  b->anchor[2] = -1.0f;*/
+/*  b->sides[0] = 3.0f;*/
+/*  b->sides[1] = 3.0f;*/
+/*  b->sides[2] = 3.0f;*/
 
   /* (0, 0, 0) -- 0 */
-  p->geometry.vertices[ 0] = 0. - origin[0];
-  p->geometry.vertices[ 1] = 0. - origin[1];
-  p->geometry.vertices[ 2] = 0. - origin[2];
+  p->geometry.vertices[ 0] = b->anchor[0] - p->x[0];
+  p->geometry.vertices[ 1] = b->anchor[1] - p->x[1];
+  p->geometry.vertices[ 2] = b->anchor[2] - p->x[2];
 
   /* (0, 0, 1)-- 1 */
-  p->geometry.vertices[ 3] = 0. - origin[0];
-  p->geometry.vertices[ 4] = 0. - origin[1];
-  p->geometry.vertices[ 5] = 1. - origin[2];
+  p->geometry.vertices[ 3] = b->anchor[0] - p->x[0];
+  p->geometry.vertices[ 4] = b->anchor[1] - p->x[1];
+  p->geometry.vertices[ 5] = b->anchor[2] + b->sides[2] - p->x[2];
 
   /* (0, 1, 0) -- 2 */
-  p->geometry.vertices[ 6] = 0. - origin[0];
-  p->geometry.vertices[ 7] = 1. - origin[1];
-  p->geometry.vertices[ 8] = 0. - origin[2];
+  p->geometry.vertices[ 6] = b->anchor[0] - p->x[0];
+  p->geometry.vertices[ 7] = b->anchor[1] + b->sides[1] - p->x[1];
+  p->geometry.vertices[ 8] = b->anchor[2] - p->x[2];
 
   /* (0, 1, 1) -- 3 */
-  p->geometry.vertices[ 9] = 0. - origin[0];
-  p->geometry.vertices[10] = 1. - origin[1];
-  p->geometry.vertices[11] = 1. - origin[2];
+  p->geometry.vertices[ 9] = b->anchor[0] - p->x[0];
+  p->geometry.vertices[10] = b->anchor[1] + b->sides[1] - p->x[1];
+  p->geometry.vertices[11] = b->anchor[2] + b->sides[2] - p->x[2];
 
   /* (1, 0, 0) -- 4 */
-  p->geometry.vertices[12] = 1. - origin[0];
-  p->geometry.vertices[13] = 0. - origin[1];
-  p->geometry.vertices[14] = 0. - origin[2];
+  p->geometry.vertices[12] = b->anchor[0] + b->sides[0] - p->x[0];
+  p->geometry.vertices[13] = b->anchor[1] - p->x[1];
+  p->geometry.vertices[14] = b->anchor[2] - p->x[2];
 
   /* (1, 0, 1) -- 5 */
-  p->geometry.vertices[15] = 1. - origin[0];
-  p->geometry.vertices[16] = 0. - origin[1];
-  p->geometry.vertices[17] = 1. - origin[2];
+  p->geometry.vertices[15] = b->anchor[0] + b->sides[0] - p->x[0];
+  p->geometry.vertices[16] = b->anchor[1] - p->x[1];
+  p->geometry.vertices[17] = b->anchor[2] + b->sides[2] - p->x[2];
 
   /* (1, 1, 0) -- 6 */
-  p->geometry.vertices[18] = 1. - origin[0];
-  p->geometry.vertices[19] = 1. - origin[1];
-  p->geometry.vertices[20] = 0. - origin[2];
+  p->geometry.vertices[18] = b->anchor[0] + b->sides[0] - p->x[0];
+  p->geometry.vertices[19] = b->anchor[1] + b->sides[1] - p->x[1];
+  p->geometry.vertices[20] = b->anchor[2] - p->x[2];
 
   /* (1, 1, 1) -- 7 */
-  p->geometry.vertices[21] = 1. - origin[0];
-  p->geometry.vertices[22] = 1. - origin[1];
-  p->geometry.vertices[23] = 1. - origin[2];
+  p->geometry.vertices[21] = b->anchor[0] + b->sides[0] - p->x[0];
+  p->geometry.vertices[22] = b->anchor[1] + b->sides[1] - p->x[1];
+  p->geometry.vertices[23] = b->anchor[2] + b->sides[2] - p->x[2];
 
   p->geometry.orders[0] = 3;
   p->geometry.orders[1] = 3;
@@ -321,41 +364,40 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
   p->geometry.edgeindices[23] = 1;
 
   /* ngbs[3*i+j] is the neighbour corresponding to the plane clockwise of
-     edge j of vertex i
-     we do not need to initialize these fields... 
-     however, we set them to a ridiculously large value to be able to track
-     faces without neighbour */
-  p->geometry.ngbs[ 0] = VORONOI_BOX_LEFT;   /* (000) - (001) */
-  p->geometry.ngbs[ 1] = VORONOI_BOX_BOTTOM; /* (000) - (010) */
-  p->geometry.ngbs[ 2] = VORONOI_BOX_FRONT;  /* (000) - (100) */
+     edge j of vertex i (when going from edge j to vertex i)
+     we set them to a ridiculously large value to be able to track faces without
+     neighbour */
+  p->geometry.ngbs[ 0] = VORONOI_BOX_FRONT;  /* (000) - (001) */
+  p->geometry.ngbs[ 1] = VORONOI_BOX_LEFT;   /* (000) - (010) */
+  p->geometry.ngbs[ 2] = VORONOI_BOX_BOTTOM; /* (000) - (100) */
 
-  p->geometry.ngbs[ 3] = VORONOI_BOX_FRONT;  /* (001) - (000) */
-  p->geometry.ngbs[ 4] = VORONOI_BOX_TOP;    /* (001) - (101) */
-  p->geometry.ngbs[ 5] = VORONOI_BOX_LEFT;   /* (001) - (011) */
+  p->geometry.ngbs[ 3] = VORONOI_BOX_LEFT;   /* (001) - (000) */
+  p->geometry.ngbs[ 4] = VORONOI_BOX_FRONT;  /* (001) - (101) */
+  p->geometry.ngbs[ 5] = VORONOI_BOX_TOP;    /* (001) - (011) */
 
-  p->geometry.ngbs[ 6] = VORONOI_BOX_BACK;   /* (010) - (011) */
-  p->geometry.ngbs[ 7] = VORONOI_BOX_BOTTOM; /* (010) - (110) */
-  p->geometry.ngbs[ 8] = VORONOI_BOX_LEFT;   /* (010) - (000) */
+  p->geometry.ngbs[ 6] = VORONOI_BOX_LEFT;   /* (010) - (011) */
+  p->geometry.ngbs[ 7] = VORONOI_BOX_BACK;   /* (010) - (110) */
+  p->geometry.ngbs[ 8] = VORONOI_BOX_BOTTOM; /* (010) - (000) */
 
-  p->geometry.ngbs[ 9] = VORONOI_BOX_LEFT;   /* (011) - (010) */
-  p->geometry.ngbs[10] = VORONOI_BOX_TOP;    /* (011) - (001) */
-  p->geometry.ngbs[11] = VORONOI_BOX_BACK;   /* (011) - (111) */
+  p->geometry.ngbs[ 9] = VORONOI_BOX_BACK;   /* (011) - (010) */
+  p->geometry.ngbs[10] = VORONOI_BOX_LEFT;   /* (011) - (001) */
+  p->geometry.ngbs[11] = VORONOI_BOX_TOP;    /* (011) - (111) */
 
-  p->geometry.ngbs[12] = VORONOI_BOX_BOTTOM; /* (100) - (000) */
-  p->geometry.ngbs[13] = VORONOI_BOX_RIGHT;  /* (100) - (110) */
-  p->geometry.ngbs[14] = VORONOI_BOX_FRONT;  /* (100) - (101) */
+  p->geometry.ngbs[12] = VORONOI_BOX_FRONT;  /* (100) - (000) */
+  p->geometry.ngbs[13] = VORONOI_BOX_BOTTOM; /* (100) - (110) */
+  p->geometry.ngbs[14] = VORONOI_BOX_RIGHT;  /* (100) - (101) */
 
-  p->geometry.ngbs[15] = VORONOI_BOX_RIGHT;  /* (101) - (100) */
-  p->geometry.ngbs[16] = VORONOI_BOX_TOP;    /* (101) - (111) */
-  p->geometry.ngbs[17] = VORONOI_BOX_FRONT;  /* (101) - (001) */
+  p->geometry.ngbs[15] = VORONOI_BOX_FRONT;  /* (101) - (100) */
+  p->geometry.ngbs[16] = VORONOI_BOX_RIGHT;  /* (101) - (111) */
+  p->geometry.ngbs[17] = VORONOI_BOX_TOP;    /* (101) - (001) */
 
-  p->geometry.ngbs[18] = VORONOI_BOX_BACK;   /* (110) - (010) */
-  p->geometry.ngbs[19] = VORONOI_BOX_RIGHT;  /* (110) - (111) */
-  p->geometry.ngbs[20] = VORONOI_BOX_BOTTOM; /* (110) - (100) */
+  p->geometry.ngbs[18] = VORONOI_BOX_BOTTOM; /* (110) - (010) */
+  p->geometry.ngbs[19] = VORONOI_BOX_BACK;   /* (110) - (111) */
+  p->geometry.ngbs[20] = VORONOI_BOX_RIGHT;  /* (110) - (100) */
 
-  p->geometry.ngbs[21] = VORONOI_BOX_TOP;    /* (111) - (011) */
-  p->geometry.ngbs[22] = VORONOI_BOX_RIGHT;  /* (111) - (101) */
-  p->geometry.ngbs[23] = VORONOI_BOX_BACK;   /* (111) - (110) */
+  p->geometry.ngbs[21] = VORONOI_BOX_BACK;   /* (111) - (011) */
+  p->geometry.ngbs[22] = VORONOI_BOX_TOP;    /* (111) - (101) */
+  p->geometry.ngbs[23] = VORONOI_BOX_RIGHT;  /* (111) - (110) */
 }
 
 /**
@@ -719,17 +761,12 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
 
   } /* if(complicated) */
 
-  visitflags[0]++;
-  dstack[0]++;
-  cs++;
-
   int cp;
   int iqs;
   int new_double_edge;
 
   cp = vindex;
   rp = vindex;
-  vindex++;
   while(qp != up || qs != us){
 
     lp = voronoi_get_edge(&c, qp, qs);
@@ -806,6 +843,8 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
       }
 
       if(j > 0){
+        voronoi_print_cell(pi);
+        voronoi_print_cell(pj);
         error("Case not handled!");
       }
 
@@ -925,12 +964,11 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
         voronoi_set_ngb(&c, vindex, 1, voronoi_get_ngb(&c, qp, qs));
         voronoi_set_ngb(&c, vindex, 2, voronoi_get_ngb(&c, lp, ls));
 
-        qs = qs+1;
+        qs++;
         if(qs == c.orders[qp]){
           qs = 0;
         }
         cp = vindex;
-        vindex++;
         cs = 2;
       } /* if(lw == 1) */
 
@@ -956,8 +994,9 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
 
   /* remove deleted vertices from all arrays */
   struct voronoi_cell new_cell;
+  int m, n;
   for(vindex = 0; vindex < c.nvert; vindex++){
-    j = vindex + 1;
+    j = vindex;
     /* find next edge that is not deleted */
     while(j < c.nvert && voronoi_get_edge(&c, j, 0) < 0){
       j++;
@@ -991,6 +1030,20 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
                             voronoi_get_edgeindex(&c, j, k));
       voronoi_set_ngb(&new_cell, vindex, k, voronoi_get_ngb(&c, j, k));
     }
+
+    /* update other edges */
+    for(k = 0; k < c.orders[j]; k++){
+      m = voronoi_get_edge(&c, j, k);
+      n = voronoi_get_edgeindex(&c, j, k);
+      if(m < vindex){
+        voronoi_set_edge(&new_cell, m, n, vindex);
+      } else {
+        voronoi_set_edge(&c, m, n, vindex);
+      }
+    }
+
+    /* deactivate edge */
+    voronoi_set_edge(&c, j, 0, -1);
   }
   new_cell.nvert = vindex;
 
@@ -1029,32 +1082,6 @@ __attribute__((always_inline)) INLINE static void voronoi_centroid_tetrahedron(
 
 }
 
-
-/**
- * @brief For debugging purposes
- */
-__attribute__((always_inline)) INLINE static void voronoi_print_cell(
-  struct part *p){
-
-  int i, j;
-  struct voronoi_cell c;
-
-  voronoi_set_cell_values(p, &c);
-
-  for(i = 0; i < c.nvert; i++){
-    message("%i: %g %g %g (%i)", i, c.vertices[3*i], c.vertices[3*i+1],
-                                 c.vertices[3*i+2], c.orders[i]);
-    for(j = 0; j < c.orders[i]; j++){
-      printf("%i (%i)", c.edges[c.offsets[i]+j], c.edgeindices[c.offsets[i]+j]);
-      if(j < c.orders[i]-1){
-        printf("\t");
-      } else {
-        printf("\n");
-      }
-    }
-  }
-}
-
 __attribute__((always_inline)) INLINE static void voronoi_calculate_cell(
   struct part *p){
 
@@ -1085,9 +1112,9 @@ __attribute__((always_inline)) INLINE static void voronoi_calculate_cell(
   /* loop over all vertices (except the first one) */
   for(i = 1; i < c.nvert; i++){
 
-    v2[0] = p->voronoi.vertices[3*i];
-    v2[1] = p->voronoi.vertices[3*i+1];
-    v2[2] = p->voronoi.vertices[3*i+2];
+    v2[0] = c.vertices[3*i+0];
+    v2[1] = c.vertices[3*i+1];
+    v2[2] = c.vertices[3*i+2];
     
     /*  loop over the edges of the vertex*/
     for(j = 0; j < c.orders[i]; j++){
@@ -1223,6 +1250,10 @@ __attribute__((always_inline)) INLINE static void voronoi_calculate_faces(
         p->voronoi.face_midpoints[3*p->voronoi.nface+1] += p->x[1];
         p->voronoi.face_midpoints[3*p->voronoi.nface+2] += p->x[2];
         p->voronoi.nface++;
+
+        if(p->voronoi.nface == VORONOI_MAXFACE){
+          error("Too many faces!");
+        }
 
       } /* if(k >= 0) */
 

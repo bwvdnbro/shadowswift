@@ -512,6 +512,14 @@ void runner_doghost(struct runner *r, struct cell *c) {
   float maxsize, r2;
   TIMER_TIC
 
+  struct voronoi_box b;
+  b.anchor[0] = -r->e->s->dim[0];
+  b.anchor[1] = -r->e->s->dim[1];
+  b.anchor[2] = -r->e->s->dim[2];
+  b.sides[0] = 3.0f*r->e->s->dim[0];
+  b.sides[1] = 3.0f*r->e->s->dim[1];
+  b.sides[2] = 3.0f*r->e->s->dim[2];
+
   /* Recurse? */
   if (c->split) {
     for (k = 0; k < 8; k++)
@@ -553,12 +561,13 @@ void runner_doghost(struct runner *r, struct cell *c) {
         wcount_dh =
             p->density.wcount_dh * ih * (4.0f / 3.0 * M_PI * kernel_gamma3);
         
-        if(p->voronoi.nvert){
+        if(p->geometry.nvert){
             maxsize = 0.0f;
-            for(k = 0; k < p->voronoi.nvert; k++){
+            for(k = 0; k < p->geometry.nvert; k++){
                 r2 = 0.0f;
                 for(j = 0; j < 3; j++){
-                    r2 += p->voronoi.vertices[3*k+j] * p->voronoi.vertices[3*k+j];
+                    r2 += p->geometry.vertices[3*k+j] *
+                          p->geometry.vertices[3*k+j];
                 }
                 maxsize = fmaxf(r2, maxsize);
             }
@@ -601,7 +610,8 @@ void runner_doghost(struct runner *r, struct cell *c) {
           /* Apply the correction to p->h and to the compact part. */
 /*          p->h += h_corr;*/
           p->h = 2.1f*maxsize;
-          voronoi_initialize(p);
+          message("b: %g %g %g %g %g %g\n", b.anchor[0], b.anchor[1], b.anchor[2], b.sides[0], b.sides[1], b.sides[2]);
+          voronoi_initialize(p, &b);
           continue;
         } else {
           /* cell is complete, set size for next step */
@@ -890,6 +900,14 @@ void runner_dokick1(struct runner *r, struct cell *c) {
   struct part *restrict p, *restrict parts = c->parts;
   struct xpart *restrict xp, *restrict xparts = c->xparts;
 
+  struct voronoi_box b;
+  b.anchor[0] = -r->e->s->dim[0];
+  b.anchor[1] = -r->e->s->dim[1];
+  b.anchor[2] = -r->e->s->dim[2];
+  b.sides[0] = 3.0f*r->e->s->dim[0];
+  b.sides[1] = 3.0f*r->e->s->dim[1];
+  b.sides[2] = 3.0f*r->e->s->dim[2];
+
   /* No children? */
   if (!c->split) {
 
@@ -1000,7 +1018,7 @@ void runner_dokick1(struct runner *r, struct cell *c) {
         p->rho_dh = 0.0f;
         p->density.div_v = 0.0f;
         for (j = 0; j < 3; ++j) p->density.curl_v[j] = 0.0f;
-        voronoi_initialize(p);
+        voronoi_initialize(p, &b);
       }
     }
 
@@ -1056,6 +1074,14 @@ void runner_dokick(struct runner *r, struct cell *c, int timer) {
   struct xpart *restrict xp, *restrict xparts = c->xparts;
 
   TIMER_TIC
+
+  struct voronoi_box b;
+  b.anchor[0] = -r->e->s->dim[0];
+  b.anchor[1] = -r->e->s->dim[1];
+  b.anchor[2] = -r->e->s->dim[2];
+  b.sides[0] = 3.0f*r->e->s->dim[0];
+  b.sides[1] = 3.0f*r->e->s->dim[1];
+  b.sides[2] = 3.0f*r->e->s->dim[2];
 
   /* No children? */
   if (!c->split) {
@@ -1173,7 +1199,7 @@ void runner_dokick(struct runner *r, struct cell *c, int timer) {
       p->density.curl_v[0] = 0.0f;
       p->density.curl_v[1] = 0.0f;
       p->density.curl_v[2] = 0.0f;
-      voronoi_initialize(p);
+      voronoi_initialize(p, &b);
     }
 
   }

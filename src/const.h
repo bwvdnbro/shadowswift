@@ -70,6 +70,7 @@
 /* Voronoi mesh parameters */
 #define VORONOI_MAXVERT 100
 #define VORONOI_MAXEDGE 300
+#define VORONOI_MAXFACE 100
 
 /* System of units */
 #define const_unit_length_in_cgs 1   /* 3.08567810e16  /\* 1Mpc *\/ */

@@ -689,11 +689,11 @@ void write_output_serial(struct engine* e, struct UnitSystem* us, int mpi_rank,
       writeArray(h_grp, "Density", FLOAT, N, 1, N_total, offset, parts,
                  primitives.rho);
       writeArray(h_grp, "NumVert", INT, N, 1, N_total, offset, parts,
-                 voronoi.nvert);
-      writeArray(h_grp, "Vertices", FLOAT, N, 300, N_total, offset, parts,
-                 voronoi.vertices);
-      writeArray(h_grp, "Edges", INT, N, 600, N_total, offset, parts,
-                 voronoi.edges);
+                 geometry.nvert);
+      writeArray(h_grp, "Vertices", FLOAT, N, 3*VORONOI_MAXVERT, N_total,
+                 offset, parts, geometry.vertices);
+      writeArray(h_grp, "Edges", INT, N, 3*VORONOI_MAXEDGE, N_total, offset,
+                 parts, geometry.edges);
       writeArray(h_grp, "Volume", FLOAT, N, 1, N_total, offset, parts,
                  voronoi.volume);
       writeArray(h_grp, "Centroid", FLOAT, N, 3, N_total, offset, parts,

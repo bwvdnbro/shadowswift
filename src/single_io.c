@@ -482,11 +482,11 @@ void write_output_single(struct engine* e, struct UnitSystem* us) {
   writeArray(h_grp, fileName, xmfFile, "Density", FLOAT, N, 1, parts, primitives.rho, us,
              UNIT_CONV_DENSITY);
   writeArray(h_grp, fileName, xmfFile, "NumVert", INT, N, 1, parts, 
-             voronoi.nvert, us, UNIT_CONV_NO_UNITS);
-  writeArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N, 300, parts,
-             voronoi.vertices, us, UNIT_CONV_LENGTH);
-  writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 600, parts,
-             voronoi.edges, us, UNIT_CONV_NO_UNITS);
+             geometry.nvert, us, UNIT_CONV_NO_UNITS);
+  writeArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N, 3*VORONOI_MAXVERT,
+             parts, geometry.vertices, us, UNIT_CONV_LENGTH);
+  writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 3*VORONOI_MAXEDGE, parts,
+             geometry.edges, us, UNIT_CONV_NO_UNITS);
   writeArray(h_grp, fileName, xmfFile, "Volume", FLOAT, N, 1, parts,
              voronoi.volume, us, UNIT_CONV_VOLUME);
   writeArray(h_grp, fileName, xmfFile, "Centroid", FLOAT, N, 3, parts,

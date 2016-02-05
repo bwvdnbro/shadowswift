@@ -580,7 +580,8 @@ void write_output_parallel(struct engine* e, struct UnitSystem* us,
   writeArray(h_grp, fileName, xmfFile, "SmoothingLength", FLOAT, N, 1, parts,
              N_total, mpi_rank, offset, h, us, UNIT_CONV_LENGTH);
   writeArray(h_grp, fileName, xmfFile, "InternalEnergy", FLOAT, N, 1, parts,
-             N_total, mpi_rank, offset, primitives.P, us, UNIT_CONV_ENERGY_PER_UNIT_MASS);
+             N_total, mpi_rank, offset, primitives.P, us,
+             UNIT_CONV_ENERGY_PER_UNIT_MASS);
   writeArray(h_grp, fileName, xmfFile, "ParticleIDs", ULONGLONG, N, 1, parts,
              N_total, mpi_rank, offset, id, us, UNIT_CONV_NO_UNITS);
   writeArray(h_grp, fileName, xmfFile, "TimeStep", FLOAT, N, 1, parts, N_total,
@@ -590,11 +591,13 @@ void write_output_parallel(struct engine* e, struct UnitSystem* us,
   writeArray(h_grp, fileName, xmfFile, "Density", FLOAT, N, 1, parts, N_total,
              mpi_rank, offset, primitives.rho, us, UNIT_CONV_DENSITY);
   writeArray(h_grp, fileName, xmfFile, "NumVert", INT, N, 1, parts, 
-             N_total, mpi_rank, offset, voronoi.nvert, us, UNIT_CONV_NO_UNITS);
-  writeArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N, 300, parts,
-             N_total, mpi_rank, offset, voronoi.vertices, us, UNIT_CONV_LENGTH);
-  writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 600, parts,
-             N_total, mpi_rank, offset, voronoi.edges, us, UNIT_CONV_NO_UNITS);
+             N_total, mpi_rank, offset, geometry.nvert, us, UNIT_CONV_NO_UNITS);
+  writeArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N, 3*VORONOI_MAXVERT,
+             parts, N_total, mpi_rank, offset, geometry.vertices, us,
+             UNIT_CONV_LENGTH);
+  writeArray(h_grp, fileName, xmfFile, "Edges", INT, N, 3*VORONOI_MAXEDGE,
+             parts, N_total, mpi_rank, offset, geometry.edges, us,
+             UNIT_CONV_NO_UNITS);
   writeArray(h_grp, fileName, xmfFile, "Volume", FLOAT, N, 1, parts,
              N_total, mpi_rank, offset, voronoi.volume, us, UNIT_CONV_VOLUME);
   writeArray(h_grp, fileName, xmfFile, "Centroid", FLOAT, N, 3, parts,

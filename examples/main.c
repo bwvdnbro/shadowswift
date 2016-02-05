@@ -281,10 +281,29 @@ int main(int argc, char *argv[]) {
       parts[k].x[2] += shift[2];
     }
 
+  /* Set default number of queues. */
+  if (nr_queues < 0) nr_queues = nr_threads;
+
+  /* Initialize the space with this data. */
+  tic = getticks();
+  space_init(&s, dim, parts, N, periodic, h_max, myrank == 0);
+  if (myrank == 0)
+    message("space_init took %.3f ms.",
+            ((double)(getticks() - tic)) / CPU_TPS * 1000);
+  fflush(stdout);
+
+  struct voronoi_box b;
+  b.anchor[0] = -s.dim[0];
+  b.anchor[1] = -s.dim[1];
+  b.anchor[2] = -s.dim[2];
+  b.sides[0] = 3.0f*s.dim[0];
+  b.sides[1] = 3.0f*s.dim[1];
+  b.sides[2] = 3.0f*s.dim[2];
+
   /* Moving mesh initialization */
   for (k = 0; k < N; k++) {
     /* Initialize Voronoi cells */
-    voronoi_initialize(&parts[k]);
+    voronoi_initialize(&parts[k], &b);
 
     /* Convert thermal energy to pressure */
     parts[k].primitives.P *= (const_hydro_gamma - 1.0f) *
@@ -296,17 +315,6 @@ int main(int argc, char *argv[]) {
     /* Initialize mass to 0 */
     parts[k].conserved.m = 0.0f;
   }
-
-  /* Set default number of queues. */
-  if (nr_queues < 0) nr_queues = nr_threads;
-
-  /* Initialize the space with this data. */
-  tic = getticks();
-  space_init(&s, dim, parts, N, periodic, h_max, myrank == 0);
-  if (myrank == 0)
-    message("space_init took %.3f ms.",
-            ((double)(getticks() - tic)) / CPU_TPS * 1000);
-  fflush(stdout);
 
   /* Set the default time step to 1.0f. */
   if (myrank == 0) message("dt_max is %e.", dt_max);

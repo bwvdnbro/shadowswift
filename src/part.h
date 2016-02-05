@@ -188,40 +188,8 @@ struct part {
 
   } geometry;
 
-//  /* Integration specific Voronoi grid stuff */
-//  struct {
-
-//    /* Volume of the cell */
-//    float volume;
-
-//    /* Centroid of the cell */
-//    float centroid[3];
-
-//    /* Cell neighbours */
-//    unsigned long long ngbs[100];
-
-//    /* Number of faces */
-//    int nface;
-
-//    /* Face areas of the cell faces */
-//    float face_areas[100];
-
-//    /* Face midpoints */
-//    float face_midpoints[300];
-
-//  } voronoi;
-
-  /* Voronoi grid stuff */
+  /* Integration specific Voronoi grid stuff */
   struct {
-
-    /* Number of vertices */
-    int nvert;
-
-    /* Vertex positions */
-    float vertices[300];
-
-    /* Edge information */
-    int edges[600];
 
     /* Volume of the cell */
     float volume;
@@ -230,16 +198,16 @@ struct part {
     float centroid[3];
 
     /* Cell neighbours */
-    unsigned long long ngbs[300];
+    unsigned long long ngbs[VORONOI_MAXFACE];
 
     /* Number of faces */
     int nface;
 
     /* Face areas of the cell faces */
-    float face_areas[100];
+    float face_areas[VORONOI_MAXFACE];
 
     /* Face midpoints */
-    float face_midpoints[300];
+    float face_midpoints[3*VORONOI_MAXFACE];
 
   } voronoi;
 
