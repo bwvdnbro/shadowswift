@@ -1584,6 +1584,7 @@ void engine_collect_kick2(struct cell *c) {
   float dt_min = FLT_MAX, dt_max = 0.0f;
   double ekin = 0.0, epot = 0.0;
   float mom[3] = {0.0f, 0.0f, 0.0f}, ang[3] = {0.0f, 0.0f, 0.0f};
+  float volume = 0.0f;
   struct cell *cp;
 
   /* If I am a super-cell, return immediately. */
@@ -1607,6 +1608,7 @@ void engine_collect_kick2(struct cell *c) {
       ang[0] += cp->ang[0];
       ang[1] += cp->ang[1];
       ang[2] += cp->ang[2];
+      volume += cp->volume;
     }
 
   /* Store the collected values in the cell. */
@@ -1621,6 +1623,7 @@ void engine_collect_kick2(struct cell *c) {
   c->ang[0] = ang[0];
   c->ang[1] = ang[1];
   c->ang[2] = ang[2];
+  c->volume = volume;
 }
 
 /**
@@ -1785,6 +1788,7 @@ void engine_step(struct engine *e) {
   double epot = 0.0, ekin = 0.0;
   float mom[3] = {0.0, 0.0, 0.0};
   float ang[3] = {0.0, 0.0, 0.0};
+  float volume = 0.0f;
   int count = 0;
   struct cell *c;
   struct space *s = e->s;
@@ -1870,6 +1874,7 @@ void engine_step(struct engine *e) {
       ang[0] += c->ang[0];
       ang[1] += c->ang[1];
       ang[2] += c->ang[2];
+      volume += c->volume;
     }
 
 /* Aggregate the data from the different nodes. */
@@ -1916,7 +1921,8 @@ if ( e->nodeID == 0 )
   // message( "total angular momentum is [ %e , %e , %e ]." , ang[0] , ang[1] ,
   // ang[2] ); fflush(stdout);
   // message( "updated %i parts (dt_step=%.3e)." , count , dt_step );
-  // fflush(stdout);
+  message("total volume: %g", volume);
+  fflush(stdout);
 
   /* Increase the step. */
   e->step += 1;

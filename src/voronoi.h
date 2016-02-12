@@ -43,10 +43,78 @@ struct voronoi_box {
 
 /* Maximal number of vertices allowed for a Voronoi cell during the cell
    construction */
-#define VORONOI_MAX_NUM_VERT 300
+#define VORONOI_MAX_NUM_VERT 500
 #define VORONOI_MAX_NUM_EDGE (3*VORONOI_MAX_NUM_VERT)
 
 #define VORONOI_TOLERANCE 1.e-7
+
+/**
+ * @brief Convert a float to an unsigned integer
+ *
+ * We use this to exactly compare float results with round off
+ */
+__attribute__((always_inline)) INLINE static unsigned int voronoi_get_bytes(
+  float f){
+
+  union{
+    float f;
+    unsigned int u;
+  } u;
+  u.f = f;
+  return u.u;
+
+}
+
+/**
+ * @brief Convert an unsigned integer to a float
+ *
+ * This can be used to exactly reproduce a floating point result with round off
+ */
+__attribute__((always_inline)) INLINE static float voronoi_get_float(
+  unsigned int ui){
+
+  union{
+    float f;
+    unsigned int u;
+  } u;
+  u.u = ui;
+  return u.f;
+
+}
+
+/**
+ * @brief Convert a double to an unsigned long
+ *
+ * We use this to exactly compare double results with round off
+ */
+__attribute__((always_inline)) INLINE static unsigned long long
+  voronoi_get_double_bytes(double d){
+
+  union{
+    double d;
+    unsigned long long u;
+  } u;
+  u.d = d;
+  return u.u;
+
+}
+
+/**
+ * @brief Convert an unsigned long to a double
+ *
+ * This can be used to exactly reproduce a double
+ */
+__attribute__((always_inline)) INLINE static double voronoi_get_double(
+  unsigned long long ul){
+
+  union{
+    double d;
+    unsigned long long u;
+  } u;
+  u.u = ul;
+  return u.d;
+
+}
 
 /* Internal representation of a Voronoi cell, which has more memory to store
    intermediate vertices, and which uses a more efficient memory layout */
@@ -104,6 +172,113 @@ __attribute__((always_inline)) INLINE static void voronoi_set_cell_values(
 
 }
 
+__attribute__((always_inline)) INLINE static void voronoi_print_test(
+  struct part *p, const char *name){
+
+  fprintf(stderr, "%s.id = %llullu;\n", name, p->id);
+  fprintf(stderr, "%s.x[0] = voronoi_get_double(%llullu);\n", name,
+          voronoi_get_double_bytes(p->x[0]));
+  fprintf(stderr, "%s.x[1] = voronoi_get_double(%llullu);\n", name,
+          voronoi_get_double_bytes(p->x[1]));
+  fprintf(stderr, "%s.x[2] = voronoi_get_double(%llullu);\n", name,
+          voronoi_get_double_bytes(p->x[2]));
+
+  fprintf(stderr, "%s.geometry.nvert = %i;\n", name, p->geometry.nvert);
+  int offset = 0;
+  for(int i = 0; i < p->geometry.nvert; i++){
+    fprintf(stderr, "%s.geometry.vertices[3*%i+0] = voronoi_get_float(%u);\n",
+            name, i, voronoi_get_bytes(p->geometry.vertices[3*i+0]));
+    fprintf(stderr, "%s.geometry.vertices[3*%i+1] = voronoi_get_float(%u);\n",
+            name, i, voronoi_get_bytes(p->geometry.vertices[3*i+1]));
+    fprintf(stderr, "%s.geometry.vertices[3*%i+2] = voronoi_get_float(%u);\n",
+            name, i, voronoi_get_bytes(p->geometry.vertices[3*i+2]));
+    fprintf(stderr, "%s.geometry.orders[%i] = %i;\n", name, i,
+            p->geometry.orders[i]);
+    for(int j = 0; j < p->geometry.orders[i]; j++){
+      fprintf(stderr, "%s.geometry.edges[%i] = %i;\n", name, offset+j,
+              p->geometry.edges[offset+j]);
+      fprintf(stderr, "%s.geometry.edgeindices[%i] = %i;\n", name, offset+j,
+              p->geometry.edgeindices[offset+j]);
+      fprintf(stderr, "%s.geometry.ngbs[%i] = %llullu;\n", name, offset+j,
+              p->geometry.ngbs[offset+j]);
+    }
+    offset += p->geometry.orders[i];
+  }
+
+}
+
+__attribute__((always_inline)) INLINE static void voronoi_print_gnuplot_c(
+  struct voronoi_cell *c, double *x){
+
+  int i, j, v;
+
+  fprintf(stderr, "%g\t%g\t%g\n\n", x[0], x[1], x[2]);
+
+  for(i = 0; i < c->nvert; i++){
+    for(j = 0; j < c->orders[i]; j++){
+      v = c->edges[c->offsets[i]+j];
+      fprintf(stderr, "%g\t%g\t%g\n", c->vertices[3*i+0] + x[0],
+                                      c->vertices[3*i+1] + x[1],
+                                      c->vertices[3*i+2] + x[2]);
+      fprintf(stderr, "%g\t%g\t%g\n\n", c->vertices[3*v+0] + x[0],
+                                        c->vertices[3*v+1] + x[1],
+                                        c->vertices[3*v+2] + x[2]);
+    }
+  }
+  fprintf(stderr, "\n");
+
+}
+
+__attribute__((always_inline)) INLINE static void voronoi_print_cell_c(
+  struct voronoi_cell *c){
+
+  int i, j;
+
+  for(i = 0; i < c->nvert; i++){
+    fprintf(stderr, "%i: %g %g %g (%i)\n", i, c->vertices[3*i],
+                                           c->vertices[3*i+1],
+                                           c->vertices[3*i+2],
+                                           c->orders[i]);
+    for(j = 0; j < c->orders[i]; j++){
+      fprintf(stderr, "%i (%i)", c->edges[c->offsets[i]+j],
+                                 c->edgeindices[c->offsets[i]+j]);
+      if(j < c->orders[i]-1){
+        fprintf(stderr, "\t");
+      } else {
+        fprintf(stderr, "\n");
+      }
+    }
+  }
+  fprintf(stderr, "\n");
+
+}
+
+/**
+ * @brief For debugging purposes
+ */
+__attribute__((always_inline)) INLINE static void voronoi_print_gnuplot(
+  struct part *p){
+
+  struct voronoi_cell c;
+
+  voronoi_set_cell_values(p, &c);
+  voronoi_print_gnuplot_c(&c, p->x);
+
+}
+
+/**
+ * @brief For debugging purposes
+ */
+__attribute__((always_inline)) INLINE static void voronoi_print_cell(
+  struct part *p){
+
+  struct voronoi_cell c;
+
+  voronoi_set_cell_values(p, &c);
+  voronoi_print_cell_c(&c);
+
+}
+
 /**
  * @brief Method that loads a #voronoi_cell into the geometry information of a
  *  #part
@@ -115,6 +290,8 @@ __attribute__((always_inline)) INLINE static void voronoi_set_particle_values(
   struct part *p, struct voronoi_cell *c){
 
   if(c->nvert > VORONOI_MAXVERT){
+    voronoi_print_cell_c(c);
+    voronoi_print_gnuplot_c(c, p->x);
     error("Too many vertices!");
   }
 
@@ -133,34 +310,6 @@ __attribute__((always_inline)) INLINE static void voronoi_set_particle_values(
   memcpy(p->geometry.edgeindices, c->edgeindices, numedge*sizeof(int));
   memcpy(p->geometry.ngbs, c->ngbs, numedge*sizeof(unsigned long long));
 
-}
-
-/**
- * @brief For debugging purposes
- */
-__attribute__((always_inline)) INLINE static void voronoi_print_cell(
-  struct part *p){
-
-  int i, j;
-  struct voronoi_cell c;
-
-  voronoi_set_cell_values(p, &c);
-
-  for(i = 0; i < c.nvert; i++){
-    fprintf(stderr, "%i: %g %g %g (%i)\n", i, c.vertices[3*i],
-                                           c.vertices[3*i+1], c.vertices[3*i+2],
-                                           c.orders[i]);
-    for(j = 0; j < c.orders[i]; j++){
-      fprintf(stderr, "%i (%i)", c.edges[c.offsets[i]+j],
-                                 c.edgeindices[c.offsets[i]+j]);
-      if(j < c.orders[i]-1){
-        fprintf(stderr, "\t");
-      } else {
-        fprintf(stderr, "\n");
-      }
-    }
-  }
-  fprintf(stderr, "\n");
 }
 
 /**
@@ -219,16 +368,23 @@ __attribute__((always_inline)) INLINE static void voronoi_set_ngb(
  * @brief Check if the given vertex is above, below or on the cutting plane
  */
 __attribute__((always_inline)) INLINE static int voronoi_test_vertex(
-    float *v, float *dx, float r2, float *test){
+    float *v, float *dx, float r2, float *test, float *teststack, int *teststack_size){
 
-    *test = v[0]*dx[0] + v[1]*dx[1] + v[2]*dx[2] - r2;
-    if(*test < -VORONOI_TOLERANCE){
-        return -1;
-    }
-    if(*test > VORONOI_TOLERANCE){
-        return 1;
-    }
-    return 0;
+  *test = v[0]*dx[0] + v[1]*dx[1] + v[2]*dx[2] - r2;
+
+  teststack[*teststack_size] = *test;
+  *teststack_size = *teststack_size + 1;
+  if(*teststack_size == 2*VORONOI_MAX_NUM_VERT){
+    *teststack_size = 0;
+  }
+
+  if(*test < -VORONOI_TOLERANCE){
+      return -1;
+  }
+  if(*test > VORONOI_TOLERANCE){
+      return 1;
+  }
+  return 0;
 
 }
 
@@ -400,6 +556,24 @@ __attribute__((always_inline)) INLINE static void voronoi_initialize(
   p->geometry.ngbs[23] = VORONOI_BOX_RIGHT;  /* (111) - (110) */
 }
 
+__attribute__((always_inline)) INLINE static void
+  voronoi_check_cell_consistency(struct voronoi_cell *c, const char *s){
+
+  int i, j, e, l, m;
+
+  for(i = 0; i < c->nvert; i++){
+    for(j = 0; j < c->orders[i]; j++){
+      e = voronoi_get_edge(c, i, j);
+      l = voronoi_get_edgeindex(c, i, j);
+      m = voronoi_get_edge(c, e, l);
+      if(m != i){
+        error("%s\nCell inconsistency!", s);
+      }
+    }
+  }
+
+}
+
 /**
  * @brief Intersect particle pi with particle pj and adapt its Voronoi cell
  *  structure
@@ -411,19 +585,24 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
 
   float dx[3];
   float r2;
-  float u, l, q;
-  int up, us, uw, lp, ls, lw, qp, qs, qw;
-  int complicated;
+  float u = 0.0f, l = 0.0f, q = 0.0f;
+  int up = -1, us = -1, uw = -1, lp = -1, ls = -1, lw = -1, qp = -1, qs = -1, qw = -1;
+  int complicated = -1;
+
+  float teststack[2*VORONOI_MAX_NUM_VERT];
+  int teststack_size = 0;
 
   struct voronoi_cell c;
   voronoi_set_cell_values(pi, &c);
+
+  voronoi_check_cell_consistency(&c, "begin");
 
   dx[0] = -0.5f * odx[0];
   dx[1] = -0.5f * odx[1];
   dx[2] = -0.5f * odx[2];
   r2 = dx[0]*dx[0] + dx[1]*dx[1] + dx[2]*dx[2];
 
-  uw = voronoi_test_vertex(&c.vertices[0], dx, r2, &u);
+  uw = voronoi_test_vertex(&c.vertices[0], dx, r2, &u, teststack, &teststack_size);
   up = 0;
   complicated = 0;
   if(uw == 0){
@@ -435,11 +614,11 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     if(uw == 1){
 
       lp = voronoi_get_edge(&c, up, 0);
-      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       us = 1;
       while(us < c.orders[up] && l >= u){
         lp = voronoi_get_edge(&c, up, us);
-        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
         us++;
       }
       us--;
@@ -454,14 +633,14 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
         us = 0;
         while(us < ls && l >= u){
           lp = voronoi_get_edge(&c, up, us);
-          lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+          lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
           us++;
         }
         if(l >= u){
           us++;
           while(us < c.orders[up] && l >= u){
             lp = voronoi_get_edge(&c, up, us);
-            lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+            lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
             us++;
           }
           if(l >= u){
@@ -479,11 +658,11 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
     } else { /* if(uw == 1) */
 
       qp = voronoi_get_edge(&c, up, 0);
-      qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q);
+      qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q, teststack, &teststack_size);
       us = 1;
       while(us < c.orders[up] && u >= q){
         qp = voronoi_get_edge(&c, up, us);
-        qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q);
+        qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q, teststack, &teststack_size);
         us++;
       }
       if(u >= q){
@@ -500,14 +679,14 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
         us = 0;
         while(us < qs && u >= q){
           qp = voronoi_get_edge(&c, up, us);
-          qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q);
+          qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q, teststack, &teststack_size);
           us++;
         }
         if(u >= q){
           us++;
           while(us < c.orders[up] && u >= q){
             qp = voronoi_get_edge(&c, up, us);
-            qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q);
+            qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q, teststack, &teststack_size);
             us++;
           }
           if(u >= q){
@@ -533,39 +712,44 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
 
   } /* if(uw == 0) */
 
-  int vindex;
+  int vindex = -1;
   int visitflags[VORONOI_MAX_NUM_VERT];
   int dstack[VORONOI_MAX_NUM_VERT];
   int dstack_size = 1;
-  float r;
-  int cs, rp;
+  float r = 0.0f;
+  int cs = -1, rp = -1;
   int double_edge = 0;
-  int i, j, k;
+  int i = -1, j = -1, k = -1;
+
+  /* initialize visitflags */
+  for(i = 0; i < VORONOI_MAX_NUM_VERT; i++){
+    visitflags[i] = 0;
+  }
 
   if(complicated){
 
     lp = voronoi_get_edge(&c, up, 0);
-    lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+    lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
 
     if(lw != -1){
 
       rp = lw;
       i = 1;
       lp = voronoi_get_edge(&c, up, i);
-      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       while(lw != -1){
         i++;
         if(i == c.orders[up]){
           error("Cell completely gone! This should not happen.");
         }
         lp = voronoi_get_edge(&c, up, i);
-        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       }
 
       j = i+1;
       while(j < c.orders[up]){
         lp = voronoi_get_edge(&c, up, j);
-        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
         if(lw != -1){
           break;
         }
@@ -624,7 +808,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
 
       i = c.orders[up]-1;
       lp = voronoi_get_edge(&c, up, i);
-      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       while(lw == -1){
         i--;
         if(i == 0){
@@ -632,16 +816,16 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
           return;
         }
         lp = voronoi_get_edge(&c, up, i);
-        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       }
 
       j = 1;
       qp = voronoi_get_edge(&c, up, j);
-      qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q);
+      qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &q, teststack, &teststack_size);
       while(qw == -1){
         j++;
         qp = voronoi_get_edge(&c, up, j);
-        qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &l);
+        qw = voronoi_test_vertex(&c.vertices[3*qp], dx, r2, &l, teststack, &teststack_size);
       }
 
       if(i == j && qw == 0){
@@ -761,16 +945,16 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
 
   } /* if(complicated) */
 
-  int cp;
-  int iqs;
-  int new_double_edge;
+  int cp = -1;
+  int iqs = -1;
+  int new_double_edge = -1;
 
   cp = vindex;
   rp = vindex;
   while(qp != up || qs != us){
 
     lp = voronoi_get_edge(&c, qp, qs);
-    lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+    lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
     if(lw == 0){
 
       k = 1;
@@ -787,7 +971,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
           qs = 0;
       }
       lp = voronoi_get_edge(&c, qp, qs);
-      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+      lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       while(lw == -1){
         k++;
         qs++;
@@ -795,7 +979,7 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
             qs = 0;
         }
         lp = voronoi_get_edge(&c, qp, qs);
-        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l);
+        lw = voronoi_test_vertex(&c.vertices[3*lp], dx, r2, &l, teststack, &teststack_size);
       }
 
       j = visitflags[qp];
@@ -843,8 +1027,16 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
       }
 
       if(j > 0){
-        voronoi_print_cell(pi);
-        voronoi_print_cell(pj);
+/*        voronoi_print_gnuplot(pi);*/
+/*        voronoi_print_gnuplot(pj);*/
+        fprintf(stderr, "dx[0] = voronoi_get_float(%u);\n",
+                voronoi_get_bytes(odx[0]));
+        fprintf(stderr, "dx[1] = voronoi_get_float(%u);\n",
+                voronoi_get_bytes(odx[1]));
+        fprintf(stderr, "dx[2] = voronoi_get_float(%u);\n",
+                voronoi_get_bytes(odx[2]));
+        voronoi_print_test(pi, "p1");
+        voronoi_print_test(pj, "p2");
         error("Case not handled!");
       }
 
@@ -852,6 +1044,39 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
       vindex = c.nvert;
       c.nvert++;
       if(c.nvert == VORONOI_MAX_NUM_VERT){
+        fprintf(stderr, "dx[0] = voronoi_get_float(%u);\n",
+                voronoi_get_bytes(odx[0]));
+        fprintf(stderr, "dx[1] = voronoi_get_float(%u);\n",
+                voronoi_get_bytes(odx[1]));
+        fprintf(stderr, "dx[2] = voronoi_get_float(%u);\n",
+                voronoi_get_bytes(odx[2]));
+        voronoi_print_test(pi, "p1");
+        voronoi_print_test(pj, "p2");
+        fprintf(stderr, "dx: %g %g %g\n", dx[0], dx[1], dx[2]);
+        fprintf(stderr, "r2: %g\n", r2);
+        fprintf(stderr, "u: %g, l: %g, q: %g\n", u, l, q);
+        fprintf(stderr, "up: %i, us: %i, uw: %i\n", up, us, uw);
+        fprintf(stderr, "lp: %i, ls: %i, lw: %i\n", lp, ls, lw);
+        fprintf(stderr, "qp: %i, qs: %i, qw: %i\n", qp, qs, qw);
+        fprintf(stderr, "complicated: %i\n", complicated);
+        fprintf(stderr, "vindex: %i\n", vindex);
+        for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){
+          fprintf(stderr, "visitflags[%i]: %i\n", ic, visitflags[ic]);
+        }
+        for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){
+          fprintf(stderr, "dstack[%i]: %i\n", ic, dstack[ic]);
+        }
+        fprintf(stderr, "dstack_size: %i\n", dstack_size);
+        for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){
+          fprintf(stderr, "teststack[%i]: %g\n", ic, teststack[ic]);
+        }
+        fprintf(stderr, "teststack_size: %i\n", teststack_size);
+        fprintf(stderr, "r: %g\n", r);
+        fprintf(stderr, "cs: %i, rp: %i\n", cs, rp);
+        fprintf(stderr, "double_edge: %i\n", double_edge);
+        fprintf(stderr, "i: %i, j: %i, k: %i\n", i, j, k);
+        fprintf(stderr, "cp: %i, iqs: %i\n", cp, iqs);
+        fprintf(stderr, "new_double_edge: %i\n", new_double_edge);
         error("Too many vertices!");
       }
       c.orders[vindex] = k;
@@ -934,6 +1159,39 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
         vindex = c.nvert;
         c.nvert++;
         if(c.nvert == VORONOI_MAX_NUM_VERT){
+          fprintf(stderr, "dx[0] = voronoi_get_float(%u);\n",
+                  voronoi_get_bytes(odx[0]));
+          fprintf(stderr, "dx[1] = voronoi_get_float(%u);\n",
+                  voronoi_get_bytes(odx[1]));
+          fprintf(stderr, "dx[2] = voronoi_get_float(%u);\n",
+                  voronoi_get_bytes(odx[2]));
+          voronoi_print_test(pi, "p1");
+          voronoi_print_test(pj, "p2");
+          fprintf(stderr, "dx: %g %g %g\n", dx[0], dx[1], dx[2]);
+          fprintf(stderr, "r2: %g\n", r2);
+          fprintf(stderr, "u: %g, l: %g, q: %g\n", u, l, q);
+          fprintf(stderr, "up: %i, us: %i, uw: %i\n", up, us, uw);
+          fprintf(stderr, "lp: %i, ls: %i, lw: %i\n", lp, ls, lw);
+          fprintf(stderr, "qp: %i, qs: %i, qw: %i\n", qp, qs, qw);
+          fprintf(stderr, "complicated: %i\n", complicated);
+          fprintf(stderr, "vindex: %i\n", vindex);
+          for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){
+            fprintf(stderr, "visitflags[%i]: %i\n", ic, visitflags[ic]);
+          }
+          for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){
+            fprintf(stderr, "dstack[%i]: %i\n", ic, dstack[ic]);
+          }
+          fprintf(stderr, "dstack_size: %i\n", dstack_size);
+          for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){
+            fprintf(stderr, "teststack[%i]: %g\n", ic, teststack[ic]);
+          }
+          fprintf(stderr, "teststack_size: %i\n", teststack_size);
+          fprintf(stderr, "r: %g\n", r);
+          fprintf(stderr, "cs: %i, rp: %i\n", cs, rp);
+          fprintf(stderr, "double_edge: %i\n", double_edge);
+          fprintf(stderr, "i: %i, j: %i, k: %i\n", i, j, k);
+          fprintf(stderr, "cp: %i, iqs: %i\n", cp, iqs);
+          fprintf(stderr, "new_double_edge: %i\n", new_double_edge);
           error("Too many vertices!");
         }
         c.orders[vindex] = 3;
@@ -1047,7 +1305,35 @@ __attribute__((always_inline)) INLINE static void voronoi_intersect(
   }
   new_cell.nvert = vindex;
 
+  voronoi_check_cell_consistency(&new_cell, "end");
+
   voronoi_set_particle_values(pi, &new_cell);
+
+/*        fprintf(stderr, "dx: %g %g %g\n", dx[0], dx[1], dx[2]);*/
+/*        fprintf(stderr, "r2: %g\n", r2);*/
+/*        fprintf(stderr, "u: %g, l: %g, q: %g\n", u, l, q);*/
+/*        fprintf(stderr, "up: %i, us: %i, uw: %i\n", up, us, uw);*/
+/*        fprintf(stderr, "lp: %i, ls: %i, lw: %i\n", lp, ls, lw);*/
+/*        fprintf(stderr, "qp: %i, qs: %i, qw: %i\n", qp, qs, qw);*/
+/*        fprintf(stderr, "complicated: %i\n", complicated);*/
+/*        fprintf(stderr, "vindex: %i\n", vindex);*/
+/*        for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){*/
+/*          fprintf(stderr, "visitflags[%i]: %i\n", ic, visitflags[ic]);*/
+/*        }*/
+/*        for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){*/
+/*          fprintf(stderr, "dstack[%i]: %i\n", ic, dstack[ic]);*/
+/*        }*/
+/*        fprintf(stderr, "dstack_size: %i\n", dstack_size);*/
+/*        for(int ic = 0; ic < VORONOI_MAX_NUM_VERT; ic++){*/
+/*          fprintf(stderr, "teststack[%i]: %g\n", ic, teststack[ic]);*/
+/*        }*/
+/*        fprintf(stderr, "teststack_size: %i\n", teststack_size);*/
+/*        fprintf(stderr, "r: %g\n", r);*/
+/*        fprintf(stderr, "cs: %i, rp: %i\n", cs, rp);*/
+/*        fprintf(stderr, "double_edge: %i\n", double_edge);*/
+/*        fprintf(stderr, "i: %i, j: %i, k: %i\n", i, j, k);*/
+/*        fprintf(stderr, "cp: %i, iqs: %i\n", cp, iqs);*/
+/*        fprintf(stderr, "new_double_edge: %i\n", new_double_edge);*/
 
 }
 

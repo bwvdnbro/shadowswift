@@ -132,34 +132,6 @@ void test_voronoi_calculate_faces(){
 }
 
 /**
- * @brief Convert a float to an unsigned integer
- *
- * We use this to exactly compare float results with round off
- */
-unsigned int get_bytes(float f){
-  union{
-    float f;
-    unsigned int u;
-  } u;
-  u.f = f;
-  return u.u;
-}
-
-/**
- * @brief Convert an unsigned integer to a float
- *
- * This can be used to exactly reproduce a floating point result with round off
- */
-float get_float(unsigned int ui){
-  union{
-    float f;
-    unsigned int u;
-  } u;
-  u.u = ui;
-  return u.f;
-}
-
-/**
  * @brief Test if the contents of the cell corresponds to what we expect
  */
 void test_cell_contents(struct part *p, int nv, float *v, int *o, int *e,
@@ -359,11 +331,16 @@ void test_degeneracies(){
 
   /* due to round off error, we have to store these values in binary format */
   float v[15] =
-    {get_float(3156465441), get_float(1028443350), get_float(3173242620),
-     get_float(3163877883), get_float(1028443350), get_float(3171046343),
-     get_float(1028443350), get_float(1028443350), get_float(1028443350),
-     get_float(3175926984), get_float(3179841669), get_float(841482240),
-     get_float(1028443350), get_float(3006267392), get_float(3184315597)};
+    {voronoi_get_float(3156465441), voronoi_get_float(1028443350),
+     voronoi_get_float(3173242620),
+     voronoi_get_float(3163877883), voronoi_get_float(1028443350),
+     voronoi_get_float(3171046343),
+     voronoi_get_float(1028443350), voronoi_get_float(1028443350),
+     voronoi_get_float(1028443350),
+     voronoi_get_float(3175926984), voronoi_get_float(3179841669),
+     voronoi_get_float(841482240),
+     voronoi_get_float(1028443350), voronoi_get_float(3006267392),
+     voronoi_get_float(3184315597)};
   int o[5] = {3, 3, 4, 3, 3};
   int e[16] = {2, 4, 1,
                0, 3, 2,
@@ -383,14 +360,26 @@ void test_degeneracies(){
   test_cell_contents(&particles[0], 5, v, o, e, f, n);
 }
 
+void test_special_case(){
+  struct part p1, p2;
+  float dx[3];
+
+#include "testVoronoi.case"
+
+  voronoi_print_cell(&p1);
+/*  voronoi_print_gnuplot(&p2);*/
+  voronoi_intersect(dx, &p1, &p2);
+}
+
 /**
  * @brief Test the Voronoi cell algorithms
  */
 int main(int argc, char **argv){
-  test_voronoi_volume_tetrahedron();
-  test_voronoi_centroid_tetrahedron();
-  test_calculate_cell();
-  test_voronoi_calculate_faces();
-  test_cell_intersections();
-  test_degeneracies();
+/*  test_voronoi_volume_tetrahedron();*/
+/*  test_voronoi_centroid_tetrahedron();*/
+/*  test_calculate_cell();*/
+/*  test_voronoi_calculate_faces();*/
+/*  test_cell_intersections();*/
+  test_special_case();
+/*  test_degeneracies();*/
 }

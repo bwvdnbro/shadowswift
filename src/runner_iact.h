@@ -54,12 +54,16 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
   float xd[3];
 
   /* voronoi calculation, added as test */
-  voronoi_intersect(dx, pi, pj);
+  if(pi->dt != FLT_MAX){
+    voronoi_intersect(dx, pi, pj);
+  }
 
   xd[0] = -dx[0];
   xd[1] = -dx[1];
   xd[2] = -dx[2];
-  voronoi_intersect(xd, pj, pi);
+  if(pj->dt != FLT_MAX){
+    voronoi_intersect(xd, pj, pi);
+  }
 
 }
 
@@ -70,8 +74,10 @@ __attribute__((always_inline)) INLINE static void runner_iact_density(
 __attribute__((always_inline)) INLINE static void runner_iact_nonsym_density(
     float r2, float *dx, float hi, float hj, struct part *pi, struct part *pj) {
 
-  /* test voronoi calculation */
-  voronoi_intersect(dx, pi, pj);
+  if(pi->dt != FLT_MAX){
+    /* test voronoi calculation */
+    voronoi_intersect(dx, pi, pj);
+  }
 
 }
 

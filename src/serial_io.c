@@ -637,10 +637,10 @@ void write_output_serial(struct engine* e, struct UnitSystem* us, int mpi_rank,
                  UNIT_CONV_DENSITY);
     prepareArray(h_grp, fileName, xmfFile, "NumVert", INT, N_total, 1, us,
                  UNIT_CONV_NO_UNITS);
-    prepareArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N_total, 300, us,
-                 UNIT_CONV_LENGTH);
-    prepareArray(h_grp, fileName, xmfFile, "Edges", INT, N_total, 600, us,
-                 UNIT_CONV_NO_UNITS);
+    prepareArray(h_grp, fileName, xmfFile, "Vertices", FLOAT, N_total,
+                 3*VORONOI_MAXVERT, us, UNIT_CONV_LENGTH);
+    prepareArray(h_grp, fileName, xmfFile, "Edges", INT, N_total,
+                 3*VORONOI_MAXEDGE, us, UNIT_CONV_NO_UNITS);
     prepareArray(h_grp, fileName, xmfFile, "Volume", FLOAT, N_total, 1, us,
                  UNIT_CONV_VOLUME);
     prepareArray(h_grp, fileName, xmfFile, "Centroid", FLOAT, N_total, 3, us,

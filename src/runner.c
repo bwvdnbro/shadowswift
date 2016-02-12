@@ -769,6 +769,7 @@ void runner_dokick2(struct runner *r, struct cell *c) {
   float dt_step = r->e->dt_step, dt = r->e->dt, hdt, idt;
   float dt_cfl, dt_h_change, dt_u_change, dt_new;
   float h_dt, u_dt;
+  float volume = 0.0f;
   struct part *restrict p, *restrict parts = c->parts;
   struct xpart *restrict xp, *restrict xparts = c->xparts;
 
@@ -858,6 +859,9 @@ void runner_dokick2(struct runner *r, struct cell *c) {
     ang[1] += m * (x[2] * v_hdt[0] - x[0] * v_hdt[2]);
     ang[2] += m * (x[0] * v_hdt[1] - x[1] * v_hdt[0]);
 
+    /* Collect volume */
+    volume += p->voronoi.volume;
+
     /* Collect entropic function */
     // lent += u * pow( p->rho, 1.f-const_gamma );
   }
@@ -882,6 +886,7 @@ void runner_dokick2(struct runner *r, struct cell *c) {
   c->ang[0] = ang[0];
   c->ang[1] = ang[1];
   c->ang[2] = ang[2];
+  c->volume = volume;
 }
 
 /**

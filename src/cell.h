@@ -137,6 +137,9 @@ struct cell {
   /* Potential and kinetic energy of particles in this cell. */
   double epot, ekin;
 
+  /* Volume of the particles in this cell. */
+  float volume;
+
   /* Number of particles updated in this cell. */
   int updated;
 
